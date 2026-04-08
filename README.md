@@ -1,3 +1,3 @@
 # AgroNomad 
-Docs:
-	*Rama para la subida de informes y anteproyectos.
+##Docs:
+**Directorio para la subida de informes y anteproyectos.**
