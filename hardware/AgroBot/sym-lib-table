@@ -1,0 +1,6 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "GY-NEO6M") (type "KiCad") (uri "${KIPRJMOD}/libs/symbols/GY-NEO6M.kicad_sym") (options "") (descr ""))
+	(lib (name "LORA_Xl1278") (type "KiCad") (uri "${KIPRJMOD}/libs/symbols/LORA_Xl1278.kicad_sym") (options "") (descr ""))
+	(lib (name "pizero2w") (type "KiCad") (uri "${KIPRJMOD}/libs/symbols/pizero2w.kicad_sym") (options "") (descr ""))
+)
