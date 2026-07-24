@@ -1,32 +1,29 @@
-# Hardware
+# hardware
+Diseños electrónicos del ecosistema AgroNomad desarrollados en KiCad.
 
-disenos esquematicos y PCB.
+---
 
-# AgroNeck
+### Estructura del Proyecto
+**AgroBot/** Estación de recepción fija con Raspberry Pi Zero 2W  
+**Cortex/** Placa principal del AgroNeck con ESP32  
+**LoraShield/** Módulo adaptador de Lora SMD a THT  
+**MLXModule/** Placa de soporte del Sensor de Temperatura MLX90614  
+**Solaria/** Placa de Alimentación Solar y Gestión Energética  
 
-**Solaria/**
+---
 
-Sistema solar inteligente y alimentacion de Cortex(Agroneck).
+## AgroBot
+![AgroBot](Agrobot\AgroBot3D.PNG)  
 
-**Cortex/**
+## Cortex
+![Cortex](Cortex\Cortex3D.PNG)  
 
-Procesamiento logico de senales de sensores que monitorean el ganado y transmision de datos hacia Agroserver.
+## LoraShield
+![LoraShield](LoraShield\LoraShield3D.PNG)  
 
-**Carotid/**
+## MLXModule
+![MLXModule](MLXModule\MLXModule3D.PNG)  
 
-Placa de medición de pulso realiza las tareas de recepción, amplificado y filtrado de la señal generada por el pulso del ganado.
-
-**MLX90614_module/**
-
-Placa de conecxion y soporte para el modulo MLX90614.
-
-**SHIELD_LORA/**
-
-Placa de conecxion y adaptacion del modulo LoRa XL1278(SMD -> TFT).
-
-# AgroBot
-
-**AgroBot/**
-
-Placa de integracion de componentes(neo6m y lora) a raspberry pi 2W zero.
+## Solaria
+![Solaria](Solaria\Solaria3D.PNG)  
 
