@@ -6,7 +6,7 @@
 
 /* ./src/index.css */
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --color-dark-green: #0E4607;
@@ -60,6 +60,8 @@
   }
 
 :root {
+      scroll-behavior: smooth;
+      scrollbar-color: oklch(71.472% 0.19564 147.358) oklch(62.832% 0.25728 29.173 / 0);
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
