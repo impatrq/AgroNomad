@@ -19,5 +19,3 @@ Sitio web: https://agro-nomad-page.vercel.app/
 ![PaginaWeb](PaginaPreview.png)    
 
 ---
-
-
