@@ -12,21 +12,18 @@ Código del AgroNeck para la ESP32. Incluye librerías para:
 
 ## Funcionando:
 
-- Comunicacion con MPU6050(Aceletometro y giroscopo) y MLX90614(Sensor Temp. Interna). -> (I2C)
+- Comunicacion con MPU6050(Aceletometro y giroscopo) y MLX90614(Sensor Temp. Interna). 
 
-- Lectura Sensor LM35(Revisar que la medicion sea adecuada).
+- Lectura Sensor LM35
+
+- Comunicacion GPS. 
+
+- Comunicacion LoRA. 
 
 ## Pendientes:
 
-- Comunicacion GPS. -> UART(Posible problema fisico entre pines de la placa).
-
-- Comunicacion LoRA. -> SPI(Revisar codigo de la libreria y probar con RX).
-  
-- ~~Programar Interrupciones en el MPU6050 para activar la TX de datos solo cuando se detecte movimiento del animal. (software realizado, falta confirmar su funcionamiento)~~
-- El wake on motion del MPU6050 parece funcional, aunque aún debe configurarse mejor. Idealmente, que no se despierte con cada movimiento, idear algún modo (similar a la función hora_actual) para que solo ejecute el programa cada x tiempo 
+-Switcheo de Mosfets entre carga y alimentación
 
 ## Luego de realizar Pendientes:
-
-- Plantear como se va a estructurar el paquete que se debe enviar al receptor.(Ej. {"lat":"dato_lat","long","dato_long",etc...}).
 
 - Buscar un metodo de encriptacion para enviar la informacion de forma segura.
