@@ -20,7 +20,7 @@ Monitoreo Inteligente de Ganado Vacuno mediante collares smart, LoRa e interfaz 
 ---
 
 ## AgroNeck  
-![AgroNeck](mechanical/renders/AgroNeck.PNG)    
+![AgroNeck](mechanical/Renders/AgroNeck.png)    
 
 ## AgroBot
-![AgroBot](mechanical/renders/AgroBot.PNG)   
+![AgroBot](mechanical/Renders/AgroBot.png)   
