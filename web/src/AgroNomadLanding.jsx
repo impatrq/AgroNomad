@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import DarkModeToggle from '@/components/ui/darkMode.jsx'
 
-import { MapPin, SolarPanel, Thermometer, Radio, Cpu } from "lucide-react";
+import { MapPin, SolarPanel, Thermometer, Radio, Cpu, ChevronLeft, ChevronRight } from "lucide-react";
 
 import logoIg from "@/assets/logos/Logo_instagram.png";
 import logoTiktok from "@/assets/logos/Logo_tiktok.png";
@@ -26,6 +26,28 @@ export default function AgroNomadLanding() {
   const imagesc2 = [imgc2s1, imgc2s2, imgc2s3, imgc2s4]
   const [current, setCurrent] = useState(0);
   const [currentHowCard, setCurrentHowCard] = useState(0);
+  const [mobileNavIndex, setMobileNavIndex] = useState(0);
+
+  const mobileNavItems = [
+    { label: "Acerca", href: "#about" },
+    { label: "Desc.", href: "#description" },
+    { label: "Cómo", href: "#how" },
+    { label: "Prest.", href: "#features" },
+    { label: "Tech", href: "#tech" },
+    { label: "Contacto", href: "#contact" },
+  ];
+
+  const visibleMobileNavItems = Array.from({ length: 2 }, (_, index) => {
+    const nextIndex = (mobileNavIndex + index) % mobileNavItems.length;
+    return mobileNavItems[nextIndex];
+  });
+
+  const moveMobileNav = (direction) => {
+    setMobileNavIndex((prev) => {
+      const next = (prev + direction * 2 + mobileNavItems.length) % mobileNavItems.length;
+      return next;
+    });
+  };
 
   const howCards = [
     {
@@ -73,30 +95,31 @@ export default function AgroNomadLanding() {
     return () => clearInterval(interval);
   }, [howCards.length]);
 
+  
   return (
-    <div className="min-h-screen bg-white text-gray-900 dark:bg-black dark:text-white transform-gpu h-48 overflow-y-auto scrollbar-gutter-auto scrollbar-thumb-light-green scrollbar-track-black/0 scroll-smooth scroll-pt-20">
+    <div className="min-h-screen bg-white text-gray-900 dark:bg-black dark:text-white transform-gpu h-48 overflow-y-auto overflow-x-hidden scrollbar-gutter-auto scrollbar-thumb-light-green scrollbar-track-black/0 scroll-smooth scroll-pt-20">
       {/* NAVBAR */}
-      <header className="w-full border-b sticky top-0 bg-gray-100/85 backdrop-blur z-50 dark:bg-slate-950/85">
-        <div className="w-full mx-auto flex justify-between items-center px-4">
-          <div className="flex column items-center space-x-2 mr-2">
-            <img src="/logo.jpeg" alt="Logo" className="h-12 min-w-12 rounded-full "/>
-            <h1 className="font-bold block hidden text-lg md:text-xl lg:text-3xl md:block">
+      <header className="sticky top-0 z-50 w-full border-b bg-gray-100/85 backdrop-blur dark:bg-slate-950/85">
+        <div className="mx-auto flex w-full items-center justify-between gap-2 px-3 py-2 md:px-4 md:py-0">
+          <div className="mr-2 flex items-center space-x-2">
+            <img src="/logo.jpeg" alt="Logo" className="h-10 min-w-10 rounded-full md:h-12 md:min-w-12" />
+            <h1 className="hidden font-bold text-lg md:block md:text-xl lg:text-3xl">
               <span className="text-light-green">Agro</span>
               <span className="text-light-orange">Nomad</span>
             </h1>
           </div>
-          
-          <nav className="space-x-2 overflow-x-auto md:flex text-nowrap items-center text-base md:space-x-6 md:block md:font-semibold md:text-lg lg:text-xl">
-            <a href="#about" className="flex-nowrap py-8 px-4 hover:text-gray-600">Acerca de</a>
-            <a href="#description" className="py-8 px-4 hover:text-gray-600">Descripción</a>
-            <a href="#how" className="py-8 px-4 hover:text-gray-600">Funcionamiento</a>
-            <a href="#features" className="py-8 px-4 hover:text-gray-600">Prestaciones</a>
-            <a href="#tech" className="py-8 px-4 hover:text-gray-600">Tecnologia</a>
-            <a href="#contact"   className="py-8 px-4 hover:text-gray-600">Contacto</a>
+
+          <nav className="hidden md:flex md:items-center md:space-x-6 md:text-base md:font-semibold md:text-lg lg:text-xl">
+            <a href="#about" className="flex-nowrap px-4 py-8 hover:text-gray-600">Acerca de</a>
+            <a href="#description" className="px-4 py-8 hover:text-gray-600">Descripción</a>
+            <a href="#how" className="px-4 py-8 hover:text-gray-600">Funcionamiento</a>
+            <a href="#features" className="px-4 py-8 hover:text-gray-600">Prestaciones</a>
+            <a href="#tech" className="px-4 py-8 hover:text-gray-600">Tecnologia</a>
+            <a href="#contact" className="px-4 py-8 hover:text-gray-600">Contacto</a>
           </nav>
 
-          <div className="w-1xl flex justify-end">
-            <DarkModeToggle/>
+          <div className="flex shrink-0 items-center gap-2">
+            <DarkModeToggle />
           </div>
         </div>
       </header>
@@ -108,14 +131,14 @@ export default function AgroNomadLanding() {
             style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.67), rgba(0,0,0,0.67)), url(${cowField})` }}
           > 
             <div className="max-w-4xl px-6 sm:px-10 md:px-20 lg:px-20 text-center">
-              <h2 className="sm:text-3xl md:text-6xl lg:text-6xl text-white font-bold leading-tight py-12">
+              <h2 className="text-6xl lg:text-6xl text-white font-bold leading-tight py-12">
                 Monitoreo inteligente de ganado con AgroNomad
               </h2>
-              <p className="sm:text-xl md:text-2xl lg:text-2xl text-white font-semibold mb-8 text-balance sm:pb-10 md:pb-30 lg:pb-30">
+              <p className="text-2xl lg:text-2xl text-white font-semibold mb-8 text-balance sm:pb-10 md:pb-30 lg:pb-30">
                 Un sistema diseñado para el ganado bovino con el fin de rastrear la ubicación y monitorear datos de salud
                 vitales como la frecuencia cardíaca y la temperatura corporal en tiempo real.
               </p>
-              <Button className="mx-auto text-black bg-white sm:text-lg md:text-2xl lg:text-2xl sm:p-6 md:p-10 lg:p-10 font-semibold cursor-pointer text-center"
+              <Button className="invisible sm:visible mx-auto text-black bg-white sm:text-lg md:text-2xl lg:text-2xl sm:p-6 md:p-10 lg:p-10 font-semibold cursor-pointer text-center"
               onClick={() => {
                 document.getElementById("how").scrollIntoView({behavior:"smooth"});
               }}
@@ -126,55 +149,65 @@ export default function AgroNomadLanding() {
       </section>
 
       {/* ABOUT */}
-      <section id="description" className="py-5 px-2 md:py-30 md:px-20 h-[calc(100lvh-80px)] w-full bg-gray-50 dark:bg-gray-950 lg:scroll-mt-28">
-        <div className="block md:grid grid-cols-2 gap-20 mx-auto justify-items-center text-center h-full w-full">
-          <div className="md:mx-8 md:my-6">
-            <h3 className="text-lg md:text-5xl font-bold mb-2 md:mb-20">Descripción del proyecto</h3>
-            <p className="text-center font-light text-gray-600 text-sm md:text-3xl md:leading-12 dark:text-gray-50 ">
+      <section id="description" className="w-full bg-gray-50 px-4 py-10 dark:bg-gray-950 md:px-8 md:py-16 lg:scroll-mt-28">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 text-center md:grid md:grid-cols-2 md:items-center md:gap-12 md:text-left">
+          <div className="text-center order-1 md:mx-8 md:my-6">
+            <h3 className="mb-4 text-2xl font-bold md:mb-8 md:text-5xl">Descripción del proyecto</h3>
+            <p className="text-center text-sm font-light text-gray-600 dark:text-gray-50 md:text-left md:text-3xl md:leading-[1.6]">
               AgroNomad es un sistema de monitoreo inteligente diseñado con el fin de brindar al sector ganadero una
               herramienta que permita rastrear y monitorear indicadores de salud del ganado.
             </p>
-            <p className="text-center font-light text-gray-600 text-sm md:text-3xl md:leading-12 dark:text-gray-50">
-              El collar recopila datos en tiempo real y los envía a una estación de recepción, donde son procesados y subidos a una interfaz web para un
-              análisis fácil y una toma de decisiones informada.
+            <p className="mt-4 text-center text-sm font-light text-gray-600 dark:text-gray-50 md:mt-6 md:text-left md:text-3xl md:leading-[1.6]">
+              El collar recopila datos en tiempo real y los envía a una estación de recepción, donde son procesados y subidos a una interfaz web para un análisis fácil y una toma de decisiones informada.
             </p>
           </div>
-          <div className="invisible md:visible bg-gray-100 size-[600px] relative overflow-hidden rounded-3xl">
-            {imagesc1.map((img, i) => (
-              <img key={i} src={img} alt={`Presentation ${i+1}`} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === current ? 'opacity-100' : 'opacity-0'}`} />
-            ))}
+
+          <div className="order-2 mx-auto w-full max-w-[min(90vw,540px)] md:max-w-[540px]">
+            <div className="relative aspect-square w-full overflow-hidden rounded-3xl bg-gray-100">
+              {imagesc1.map((img, i) => (
+                <img
+                  key={i}
+                  src={img}
+                  alt={`Presentation ${i + 1}`}
+                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${i === current ? 'opacity-100' : 'opacity-0'}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* HOW IT WORKS */}
-      <section id="how" className="py-20 px-6 dark:text-gray-50 lg:scroll-mt-28">
-        <div className="max-w-6xl mx-auto">
-          <h3 className="text-5xl font-bold text-center mb-25">Como funciona</h3>
-          <div className="flex items-center gap-8 pb-10">
-            <div className="relative flex-1 px-2">
-              <div className="relative flex items-center justify-center gap-4 h-full min-h-[260px] overflow-visible">
+      <section id="how" className="w-full px-4 py-10 dark:text-gray-50 md:px-6 md:py-20 lg:scroll-mt-28">
+        <div className="mx-auto max-w-6xl">
+          <h3 className="mb-6 text-center text-3xl font-bold sm:text-4xl md:mb-10 md:text-5xl">Como funciona</h3>
+          <div className="flex items-center justify-center pb-2 md:pb-10">
+            <div className="relative w-full px-1 md:px-2">
+              <div className="relative flex h-[220px] items-center justify-center overflow-hidden sm:h-[250px] md:h-full md:min-h-[260px]">
                 {howCards.map((card, index) => {
                   const offset = getHowCardPosition(index);
                   const isCenter = offset === 0;
+                  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
                   return (
-                    <Card
+                    <div
                       key={`${card.title}-${index}`}
-                      className={`absolute w-full max-w-[320px] rounded-2xl shadow-md overflow-visible transition-all duration-700 ease-out ${isCenter ? "scale-100 opacity-100 z-20" : "scale-95 opacity-70 z-10"}`}
+                      className={`absolute rounded-2xl shadow-md transition-all duration-700 ease-out ${isMobile ? "w-[74vw] max-w-[300px]" : "w-full max-w-[320px]"} ${isCenter ? "z-20 scale-90 opacity-100" : "z-10 scale-85 opacity-70"}`}
                       style={{
-                        transform: `translateX(${offset * 125}%) scale(${isCenter ? 1 : 0.96})`,
+                        transform: `translateX(${offset * (isMobile ? 56 : 125)}%) scale(${isCenter ? 1 : 0.96})`,
                         transition: "transform 700ms ease, opacity 700ms ease, scale 700ms ease",
                       }}
                     >
-                      <CardContent className="p-6 rounded-2xl overflow-visible">
-                        <div className="mb-4 flex items-center gap-3">
-                          <div className="flex-shrink-0">{card.icon}</div>
-                          <h4 className="font-semibold text-xl">{card.title}</h4>
-                        </div>
-                        <p className="text-lg text-gray-600 dark:text-gray-50 leading-relaxed">{card.description}</p>
-                      </CardContent>
-                    </Card>
+                      <Card className="h-full w-full rounded-2xl shadow-none">
+                        <CardContent className="rounded-2xl p-4 sm:p-5 md:p-6">
+                          <div className="mb-3 flex items-center gap-3 sm:mb-4">
+                            <div className="flex-shrink-0">{card.icon}</div>
+                            <h4 className="text-base font-semibold sm:text-lg md:text-xl">{card.title}</h4>
+                          </div>
+                          <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-50 sm:text-base md:text-lg">{card.description}</p>
+                        </CardContent>
+                      </Card>
+                    </div>
                   );
                 })}
               </div>
@@ -184,36 +217,48 @@ export default function AgroNomadLanding() {
       </section>
 
       {/* FEATURES */}
-      <section id="features" className="py-5 px-2 md:py-12 md:px-15 h-[calc(100lvh-80px)] w-full bg-gray-50 dark:bg-gray-950 lg:scroll-mt-28">
-        <div className="max-w-8xl mx-auto">
-          <h3 className="text-5xl font-bold text-center mb-12">Prestaciones</h3>
-          <div className="w-full grid md:grid-cols-3 gap-12">
-            <div className="relative grid md:grid-rows-2">
-              <Feature icon={<SolarPanel className="size-10" color="Orange"/>} title="Alimentación Solar" description="Proporciona energía renovable para el funcionamiento del dispositivo." />
-              <Feature icon={<Thermometer className="size-10" color="Orange"/>} title="Temperatura" description="Mide y analiza la temperatura del ganado durante la actividad." />
+      <section id="features" className="w-full bg-gray-50 px-4 py-10 dark:bg-gray-950 md:px-15 md:py-12 lg:scroll-mt-28">
+        <div className="mx-auto max-w-8xl">
+          <h3 className="mb-8 text-center text-3xl font-bold sm:text-4xl md:mb-12 md:text-5xl">Prestaciones</h3>
+          <div className="flex flex-col gap-6 md:grid md:grid-cols-[1fr_minmax(260px,1.2fr)_1fr] md:items-stretch md:gap-8">
+            <div className="order-1 flex flex-col gap-4 md:justify-between">
+              <Feature icon={<SolarPanel className="size-8 sm:size-10" color="Orange" />} title="Alimentación Solar" description="Proporciona energía renovable para el funcionamiento del dispositivo." />
+              <Feature icon={<Thermometer className="size-8 sm:size-10" color="Orange" />} title="Temperatura" description="Mide y analiza la temperatura del ganado durante la actividad." />
             </div>
-            <div className="bg-gray-100 rounded-2xl max-h-9/10 w-full relative overflow-hidden">
-              <img src={greenField} alt="Green Field" className="rounded-2xl w-full h-full object-cover" />
+
+            <div className="order-2 mx-auto w-full max-w-[min(78vw,440px)] md:max-w-none md:w-full">
+              <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-gray-100">
+                <img src={greenField} alt="Green Field" className="h-full w-full rounded-2xl object-cover" />
+              </div>
             </div>
-            <div className="relative grid md:grid-rows-2">
-              <Feature icon={<Radio className="size-10" color="Green"/>} title="Comunicación LoRa" description="Permite la comunicación inalámbrica entre los AgroNeck y el AgroBot." />
-              <Feature icon={<MapPin className="size-10" color="Green"/>} title="Seguimiento GPS" description="Realiza un seguimiento preciso de la ubicación del ganado en tiempo real." />
+
+            <div className="order-3 flex flex-col gap-4 md:justify-between">
+              <Feature icon={<Radio className="size-8 sm:size-10" color="Green" />} title="Comunicación LoRa" description="Permite la comunicación inalámbrica entre los AgroNeck y el AgroBot." />
+              <Feature icon={<MapPin className="size-8 sm:size-10" color="Green" />} title="Seguimiento GPS" description="Realiza un seguimiento preciso de la ubicación del ganado en tiempo real." />
             </div>
           </div>
         </div>
       </section>
 
       {/* TECHNOLOGY */}
-      <section id="tech" className="py-20 px-6 dark:text-gray-50 lg:scroll-mt-28">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
-          <div className="invisible md:visible bg-gray-100 rounded-2xl h-[500px] w-[500px] relative overflow-hidden mx-auto">
-            {imagesc2.map((img, i) => (
-              <img key={i} src={img} alt={`Presentation ${i+1}`} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === current ? 'opacity-100' : 'opacity-0'}`} />
-            ))}
+      <section id="tech" className="w-full px-4 py-10 dark:text-gray-50 md:px-6 md:py-20 lg:scroll-mt-28">
+        <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-2 md:items-center md:gap-16">
+          <div className="order-2 mx-auto w-full max-w-[min(80vw,500px)] md:order-1 md:max-w-[500px]">
+            <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-gray-100">
+              {imagesc2.map((img, i) => (
+                <img
+                  key={i}
+                  src={img}
+                  alt={`Presentation ${i + 1}`}
+                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-1000 ${i === current ? 'opacity-100' : 'opacity-0'}`}
+                />
+              ))}
+            </div>
           </div>
-          <div className="max-w-4xl mx-auto text-center">
-            <h3 className="text-5xl font-bold mb-16">Tecnología utilizada</h3>
-            <ul className="text-gray-600 dark:text-gray-50 space-y-5 text-xl font-light text-left list-disc list-inside">
+
+          <div className="order-1 mx-auto max-w-4xl text-center md:order-2 md:text-left">
+            <h3 className="mb-6 text-3xl font-bold sm:text-4xl md:mb-16 md:text-5xl">Tecnología utilizada</h3>
+            <ul className="list-inside list-disc space-y-3 text-left text-base font-light text-gray-600 dark:text-gray-50 sm:text-xl">
               <li>Microcontrolador ESP32</li>
               <li>Módulo GPS</li>
               <li>Sensores de movimiento, temperatura y frecuencia cardíaca</li>
@@ -257,13 +302,13 @@ export default function AgroNomadLanding() {
 
 function Feature({ icon, title, description }) {
   return (
-    <Card className="max-h-3/4 rounded-2xl">
-      <CardContent className="items-center p-8">
-        <div className="flex items-center justify-center gap-4 mt-4 mb-12">
+    <Card className="h-full rounded-2xl shadow-sm">
+      <CardContent className="flex h-full flex-col justify-center p-4 sm:p-6 md:p-8">
+        <div className="mb-4 flex items-center justify-center gap-3 text-left sm:mb-5 md:mb-6 md:justify-start">
           <div className="flex-shrink-0">{icon}</div>
-          <h4 className="font-semibold text-3xl text-left">{title}</h4>
+          <h4 className="text-lg font-semibold sm:text-xl md:text-2xl">{title}</h4>
         </div>
-        <h5 className="text-2xl text-center align-middle font-light text-gray-600 dark:text-gray-50 mx-2">{description}</h5>
+        <h5 className="mx-1 text-center text-sm font-light text-gray-600 dark:text-gray-50 sm:text-base md:text-left md:text-xl">{description}</h5>
       </CardContent>
     </Card>
   );
