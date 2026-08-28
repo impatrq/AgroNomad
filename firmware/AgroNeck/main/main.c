@@ -3,6 +3,7 @@
 #include <sys/time.h>
 #include "esp_log.h"    
 #include "esp_sleep.h"
+#include "esp_system.h"
 #include "esp_adc/adc_oneshot.h" 
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
@@ -29,8 +30,9 @@
 // Variable que guarda el estado de mosfets aun en Deep Sleep
 RTC_DATA_ATTR bool estado_mosfet = true; //true = estado inicial, 2+3 y false = estado secundario, 1+4
 // Conmutación de baterías
-#define TIEMPO_CAMBIO_BATS 10ULL // Constante que expresa 24hs en microsegs
+#define TIEMPO_CAMBIO_BATS 10ULL 
 RTC_DATA_ATTR uint64_t tiempo_switch = 0;
+RTC_DATA_ATTR bool sistema_inicializado = false;
 
 
 // VARIABLES DE DATOS
@@ -39,13 +41,14 @@ double latitude; double longitude; char lat_hemisphere; char lon_hemisphere; flo
 
 // SISTEMA DE TEMPERATURA
 #define Vout_LM35       34 // GPIO de Salida del sensor de temperatura LM35
-#define H_COEFICIENTE   1.0f // Constante de acoplamiento térmico para el pelaje (Calibrar)
+#define H_COEFICIENTE   0.18f // Constante de acoplamiento térmico para el pelaje (Calibrar)
 float lm_amb_temp;  // Temperatura ambiente del LM35
 mlx90614_data_t mlx_data; // Temperatura piel del animal
 float temp_interna; // temperatura final del calculo
 
 // Inicialización de Salida de MOSFETs
 void init_mosfet_gpios() {
+    gpio_deep_sleep_hold_dis();
     gpio_hold_dis(MOSFET1);
     gpio_hold_dis(MOSFET2);
     gpio_hold_dis(MOSFET3);
@@ -54,6 +57,8 @@ void init_mosfet_gpios() {
         .intr_type = GPIO_INTR_DISABLE,           // Deshabilitar interrupciones
         .mode = GPIO_MODE_OUTPUT,                 // Configurar como salida
         .pin_bit_mask = GPIO_MOSFET_MASK,         // Uso la mascara
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
     };
     gpio_config(&io_config);
 }
@@ -81,23 +86,35 @@ void switch_mosfet() {
     aplica_estado_mosfet();
 }
 
-
-void hora_actual() {
+uint64_t tiempo_medido(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    uint64_t tiempo_actual = (uint64_t)tv.tv_sec;
+    return (uint64_t)tv.tv_sec;
+}
 
-    if (tiempo_switch == 0) {
+
+void hora_actual() {
+    uint64_t tiempo_actual = tiempo_medido();
+
+    // Si es el primer encendido físico del equipo
+    if (!sistema_inicializado) {
         tiempo_switch = tiempo_actual;
+        sistema_inicializado = true;
         aplica_estado_mosfet();
+        ESP_LOGI("MAIN", "Tiempo base: %llu", tiempo_switch);
         return;
     }
 
-    if ((tiempo_actual - tiempo_switch) >= TIEMPO_CAMBIO_BATS) {
+    uint64_t transcurrido = tiempo_actual - tiempo_switch;
+    ESP_LOGI("MOSFETS", "Tiempo actual: %llu s, ultimo switch: %llu, transcurrido: %llu s", 
+             tiempo_actual, tiempo_switch, transcurrido);
+
+    // Evalúa si ya pasó el tiempo necesario para cambiar de batería
+    if (transcurrido >= TIEMPO_CAMBIO_BATS) {
         switch_mosfet();
-        tiempo_switch = tiempo_actual;
-    }
-     else {
+        tiempo_switch = tiempo_actual; // Se actualiza el tiempo base con la hora actual
+    } else {
+        ESP_LOGI("MOSFETS", "Aún no transcurrió el tiempo. Se mantiene estado actual.");
         aplica_estado_mosfet();
     }
 }
@@ -162,7 +179,7 @@ void read_mlx90614() {
 void internal_temp() {
     ESP_LOGI("Temp.Calc","Calculando temperatura interna...");
     // Fórmula: T_interna = T_ambiente + (T_objeto - T_ambiente) * H_COEFICIENTE
-    temp_interna = lm_amb_temp + (mlx_data.mlx_object_temp - lm_amb_temp) * H_COEFICIENTE;
+    temp_interna = (lm_amb_temp+8) + (mlx_data.mlx_object_temp - (lm_amb_temp+8)) * H_COEFICIENTE;
     ESP_LOGI("Temp.Calc","Temperatura interna estimada: %.2f °C", temp_interna); 
 }
 
@@ -235,6 +252,7 @@ void app_main(void)
         ESP_LOGI("MAIN_fwu","Inicio y congelo los mosfets.");
         //Configuro MOSFETs antes de entrar en Deep Sleep
         init_mosfet_gpios();
+        hora_actual();
         aplica_estado_mosfet();
         gpio_hold_en(MOSFET1);
         gpio_hold_en(MOSFET2);
@@ -244,7 +262,7 @@ void app_main(void)
         //Configuración de GPIO que despierte a la ESP32
         ESP_LOGI("MAIN_fwu","Preparo interrupción.");
         esp_sleep_enable_ext0_wakeup(WAKEUP_GPIO, WAKEUP_LEVEL); 
-
+        
         ESP_LOGI("MAIN_fwu","Entrando en deep sleep...");
         vTaskDelay(pdMS_TO_TICKS(100));
         

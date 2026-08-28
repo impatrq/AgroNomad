@@ -71,6 +71,7 @@ esp_err_t mpu6050_init(i2c_port_t i2c_num) {
     return ret;
 }
 
+
 esp_err_t mpu6050_read(mpu6050_data_t *data, i2c_port_t i2c_num) {
     uint8_t buffer[14];
     esp_err_t ret = mpu6050_read_bytes(i2c_num, MPU6050_ACCEL_XOUT_H, buffer, 14);
