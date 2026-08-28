@@ -24,3 +24,4 @@ Monitoreo Inteligente de Ganado Vacuno mediante collares smart, LoRa e interfaz 
 
 ## AgroBot
 ![AgroBot](mechanical/Renders/AgroBot.png)   
+
