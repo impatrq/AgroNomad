@@ -1747,6 +1747,194 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Switch:SW_DPST_x2"
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "SW"
+				(at 0 3.175 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "SW_DPST_x2"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Single Pole Single Throw (SPST) switch, separate symbol"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "switch lever"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "SW_DPST_x2_0_0"
+				(circle
+					(center -2.032 0)
+					(radius 0.508)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.524 0.254) (xy 1.524 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 2.032 0)
+					(radius 0.508)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "SW_DPST_x2_1_1"
+				(pin passive line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 0 180)
+					(length 2.54)
+					(name "B"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(symbol "SW_DPST_x2_2_1"
+				(pin passive line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 5.08 0 180)
+					(length 2.54)
+					(name "B"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "TP4056:TP4056"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -2617,6 +2805,12 @@
 		(uuid "072354f8-405c-4a0e-8c68-992f66b534bb")
 	)
 	(junction
+		(at 111.76 130.81)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "6779f7b6-258d-43ca-a8a0-4b33372b16ec")
+	)
+	(junction
 		(at 148.59 130.81)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2627,6 +2821,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "6f452fe1-7871-4e59-bb1a-282e7c12d85a")
+	)
+	(junction
+		(at 111.76 101.6)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "7950b684-3daf-4e01-9799-24e811acfdc1")
 	)
 	(junction
 		(at 135.89 66.04)
@@ -2750,6 +2950,16 @@
 	)
 	(wire
 		(pts
+			(xy 48.26 130.81) (xy 111.76 130.81)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "18d2a4d0-982f-42bc-baca-931501b414c4")
+	)
+	(wire
+		(pts
 			(xy 179.07 66.04) (xy 175.26 66.04)
 		)
 		(stroke
@@ -2850,6 +3060,16 @@
 	)
 	(wire
 		(pts
+			(xy 48.26 118.11) (xy 48.26 130.81)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4de4b2f9-83c4-47b6-9377-f6b71e361f4b")
+	)
+	(wire
+		(pts
 			(xy 187.96 66.04) (xy 200.66 66.04)
 		)
 		(stroke
@@ -2947,6 +3167,16 @@
 			(type default)
 		)
 		(uuid "6640440d-73ab-49f8-9505-c93339b126f9")
+	)
+	(wire
+		(pts
+			(xy 48.26 107.95) (xy 48.26 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6ceaf0cd-dc5a-4955-862a-6907a11eb81f")
 	)
 	(wire
 		(pts
@@ -3077,6 +3307,16 @@
 			(type default)
 		)
 		(uuid "9b613bfc-ccf5-4743-a823-076a3fd5bd89")
+	)
+	(wire
+		(pts
+			(xy 48.26 101.6) (xy 111.76 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9e1d94bd-86dc-4053-8e0f-6cecb093a140")
 	)
 	(wire
 		(pts
@@ -6930,6 +7170,94 @@
 			(project "sistemasolar"
 				(path "/37605b2f-a95c-4385-8c81-ccd587e35e25"
 					(reference "#PWR01")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Switch:SW_DPST_x2")
+		(at 48.26 113.03 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "fdcbaee4-bcd0-4e8f-b6d9-64eb07cfa8e8")
+		(property "Reference" "SW1"
+			(at 49.53 111.7599 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "SW_DPST_x2"
+			(at 49.53 114.2999 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Button_Switch_THT:SW_PUSH-12mm_Wuerth-430476085716"
+			(at 48.26 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 48.26 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Single Pole Single Throw (SPST) switch, separate symbol"
+			(at 48.26 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "3"
+			(uuid "0af765ef-efc3-405e-b9c5-93776d47f8ee")
+		)
+		(pin "2"
+			(uuid "4d425b06-7dec-4d15-8890-43d7aed7261d")
+		)
+		(pin "1"
+			(uuid "fe010d88-e7dc-4cb0-ab84-ef7da5859b45")
+		)
+		(pin "4"
+			(uuid "a007a6ed-ab0b-41f7-8b72-cd8f7593ea81")
+		)
+		(instances
+			(project "sistemasolar"
+				(path "/37605b2f-a95c-4385-8c81-ccd587e35e25"
+					(reference "SW1")
 					(unit 1)
 				)
 			)
