@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project name="PostgreSQL" database="PostgreSQL" id="ded9a402-9909-4de8-9d84-3184a42eef3e" >
+	<schema name="public" >
+		<table name="animal_daily_statistics" spec="" >
+			<column name="id" type="serial" mandatory="y" />
+			<column name="animal_id" type="integer" mandatory="y" />
+			<column name="date" type="date" mandatory="y" />
+			<column name="distance_travelled" type="double precision" >
+				<defo><![CDATA[0]]></defo>
+			</column>
+			<column name="movement_time" type="double precision" >
+				<defo><![CDATA[0]]></defo>
+			</column>
+			<column name="sleep_time" type="double precision" >
+				<defo><![CDATA[0]]></defo>
+			</column>
+			<index name="pk_animal_daily_statistics" unique="PRIMARY_KEY" >
+				<column name="id" />
+			</index>
+			<fk name="fk" to_schema="public" to_table="animals" delete_action="cascade" options="" >
+				<fk_column name="animal_id" pk="id" />
+			</fk>
+		</table>
+		<table name="animal_devices" spec="" >
+			<column name="animal_id" type="integer" mandatory="y" />
+			<column name="device_id" type="integer" mandatory="y" />
+			<column name="assigned_at" type="timestamp" >
+				<defo><![CDATA[CURRENT_TIMESTAMP]]></defo>
+			</column>
+			<column name="unassigned_at" type="timestamp" />
+			<index name="pk_animal_devices" unique="PRIMARY_KEY" >
+				<column name="animal_id" />
+				<column name="device_id" />
+			</index>
+			<fk name="fk" to_schema="public" to_table="animals" delete_action="cascade" options="" >
+				<fk_column name="animal_id" pk="id" />
+			</fk>
+			<fk name="fk" to_schema="public" to_table="devices" delete_action="cascade" options="" >
+				<fk_column name="device_id" pk="id" />
+			</fk>
+		</table>
+		<table name="animals" spec="" >
+			<column name="id" type="serial" mandatory="y" />
+			<column name="user_id" type="integer" mandatory="y" />
+			<column name="yard_id" type="integer" />
+			<column name="name" type="text" mandatory="y" />
+			<column name="animal_type" type="text" mandatory="y" />
+			<column name="created_at" type="timestamp" >
+				<defo><![CDATA[CURRENT_TIMESTAMP]]></defo>
+			</column>
+			<column name="active" type="boolean" >
+				<defo><![CDATA[TRUE]]></defo>
+			</column>
+			<index name="pk_animals" unique="PRIMARY_KEY" >
+				<column name="id" />
+			</index>
+			<fk name="fk" to_schema="public" to_table="users" delete_action="cascade" options="" >
+				<fk_column name="user_id" pk="id" />
+			</fk>
+			<fk name="fk" to_schema="public" to_table="yards" delete_action="setNull" options="" >
+				<fk_column name="yard_id" pk="id" />
+			</fk>
+		</table>
+		<table name="devices" spec="" >
+			<column name="id" type="serial" mandatory="y" />
+			<column name="device_uid" type="text" mandatory="y" />
+			<column name="hardware_version" type="text" />
+			<column name="firmware_version" type="text" />
+			<column name="last_battery_level" type="text" />
+			<column name="last_seen" type="timestamp" >
+				<defo><![CDATA[CURRENT_TIMESTAMP]]></defo>
+			</column>
+			<index name="pk_devices" unique="PRIMARY_KEY" >
+				<column name="id" />
+			</index>
+			<index name="unq_devices_device_uid" unique="UNIQUE_KEY" >
+				<column name="device_uid" />
+			</index>
+		</table>
+		<table name="gps_positions" spec="" >
+			<column name="id" type="serial" mandatory="y" />
+			<column name="animal_id" type="integer" mandatory="y" />
+			<column name="device_id" type="integer" />
+			<column name="timestamp" type="timestamp" >
+				<defo><![CDATA[CURRENT_TIMESTAMP]]></defo>
+			</column>
+			<column name="latitude" type="double precision" />
+			<column name="longitude" type="double precision" />
+			<column name="temperature" type="text" />
+			<column name="heartbeat" type="text" />
+			<column name="speed" type="double precision" />
+			<column name="accuracy" type="double precision" />
+			<index name="pk_gps_positions" unique="PRIMARY_KEY" >
+				<column name="id" />
+			</index>
+			<fk name="fk" to_schema="public" to_table="animals" delete_action="cascade" options="" >
+				<fk_column name="animal_id" pk="id" />
+			</fk>
+			<fk name="fk" to_schema="public" to_table="devices" delete_action="setNull" options="" >
+				<fk_column name="device_id" pk="id" />
+			</fk>
+		</table>
+		<table name="users" spec="" >
+			<column name="id" type="serial" mandatory="y" />
+			<column name="name" type="text" mandatory="y" />
+			<column name="email" type="text" mandatory="y" />
+			<column name="phone" type="text" />
+			<column name="password_hash" type="text" mandatory="y" />
+			<column name="created_at" type="timestamp" >
+				<defo><![CDATA[CURRENT_TIMESTAMP]]></defo>
+			</column>
+			<index name="pk_users" unique="PRIMARY_KEY" >
+				<column name="id" />
+			</index>
+			<index name="unq_users_email" unique="UNIQUE_KEY" >
+				<column name="email" />
+			</index>
+		</table>
+		<table name="yards" spec="" >
+			<column name="id" type="serial" mandatory="y" />
+			<column name="user_id" type="integer" mandatory="y" />
+			<column name="name" type="text" mandatory="y" />
+			<column name="boundary" type="text" />
+			<column name="created_at" type="timestamp" >
+				<defo><![CDATA[CURRENT_TIMESTAMP]]></defo>
+			</column>
+			<index name="pk_yards" unique="PRIMARY_KEY" >
+				<column name="id" />
+			</index>
+			<fk name="fk" to_schema="public" to_table="users" delete_action="cascade" options="" >
+				<fk_column name="user_id" pk="id" />
+			</fk>
+		</table>
+	</schema>
+	<diagram_group name="Default" id="7d59fd19-36b7-47fc-893a-a8bc298e89d0" >
+		<diagram name="Diagram" id="fcc9e5a6-b7ce-4d68-89be-fdc3a443c5e9" show_relation="columns" >
+			<entity schema="public" name="animal_daily_statistics" color="3986C1" x="589" y="551" />
+			<entity schema="public" name="animal_devices" color="3986C1" x="589" y="399" />
+			<entity schema="public" name="animals" color="3986C1" x="342" y="361" />
+			<entity schema="public" name="devices" color="3986C1" x="874" y="399" />
+			<entity schema="public" name="gps_positions" color="3986C1" x="1235" y="323" />
+			<entity schema="public" name="users" color="3986C1" x="57" y="228" />
+			<entity schema="public" name="yards" color="3986C1" x="342" y="57" />
+		</diagram>
+	</diagram_group>
+</project>

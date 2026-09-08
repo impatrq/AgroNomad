@@ -11,7 +11,6 @@ node_modules
 dist
 dist-ssr
 *.local
-idk.txt
 
 # Editor directories and files
 .vscode/*
@@ -23,5 +22,5 @@ idk.txt
 *.njsproj
 *.sln
 *.sw?
-.vercel
-.env*
+
+*.pr
