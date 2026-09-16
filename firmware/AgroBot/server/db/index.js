@@ -266,7 +266,6 @@ export async function listAnimals() {
         `SELECT ST_Y(location::geometry) AS latitude,
                 ST_X(location::geometry) AS longitude,
                 temperature,
-                heartbeat
          FROM gps_positions
          WHERE animal_id = $1
          ORDER BY timestamp DESC
@@ -281,7 +280,6 @@ export async function listAnimals() {
         lat: Number(latest.latitude ?? 0),
         lng: Number(latest.longitude ?? 0),
         temp: String(latest.temperature ?? ''),
-        hb: String(latest.heartbeat ?? ''),
       })
     }
 
@@ -306,7 +304,6 @@ export async function listAnimals() {
     LAT: number,
     LONG: number,
     TEMP: string,
-    HB: string 
   }
 
 */
@@ -324,7 +321,6 @@ export async function upsertAnimalSnapshot(payload) {
     const lat = Number(payload.LAT ?? payload.lat ?? payload.latitude ?? payload.Latitude)
     const lng = Number(payload.LONG ?? payload.long ?? payload.longitude ?? payload.Longitude)
     const temp = Number(payload.TEMP ?? payload.temp ?? payload.temperature ?? payload.Temperature ?? 0)
-    const hb = Number(payload.HB ?? payload.hb ?? payload.HeartBeat ?? payload.hbRate ?? payload.heartBeat ?? 0)
 
     if (!id || Number.isNaN(lat) || Number.isNaN(lng)) {
       return null
@@ -367,10 +363,10 @@ export async function upsertAnimalSnapshot(payload) {
       animalId = insertedAnimal.rows[0].id
 
       const insertedDevice = await client.query(
-        `INSERT INTO devices (device_uid, hardware_version, firmware_version, last_battery_level, last_seen)
-         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+        `INSERT INTO devices (device_uid, hardware_version, firmware_version, last_seen)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
          RETURNING id`,
-        [id, 'v1.0', '1.2.3', 87]
+        [id, 'v1.0', '1.2.3']
       )
       deviceId = insertedDevice.rows[0].id
 
@@ -386,12 +382,12 @@ export async function upsertAnimalSnapshot(payload) {
 
     // Insert the latest GPS position into the gps_positions table using a PostGIS POINT
     await client.query(
-      `INSERT INTO gps_positions (animal_id, device_id, timestamp, location, temperature, heartbeat, speed, accuracy)
-       VALUES ($1, $2, CURRENT_TIMESTAMP, ST_SetSRID(ST_MakePoint($3, $4), 4326), $5, $6, $7, $8)`,
-      [animalId, deviceId, lng, lat, temp, hb, 1.1, 2.5]
+      `INSERT INTO gps_positions (animal_id, device_id, timestamp, location, temperature, speed, accuracy)
+       VALUES ($1, $2, CURRENT_TIMESTAMP, ST_SetSRID(ST_MakePoint($3, $4), 4326), $5, $6, $7)`,
+      [animalId, deviceId, lng, lat, temp, 1.1, 2.5]
     )
 
-    return { id, name, lat, lng, temp: String(temp), hb: String(hb) }
+    return { id, name, lat, lng, temp: String(temp) }
   } finally {
     client.release()
   }
@@ -518,9 +514,9 @@ export async function seedSampleData() {
 
     //sample animals to seed in DB
     const sampleAnimals = [
-      { name: 'Lora', animalType: 'cattle', deviceUid: 'COLLAR-01', lat: -34.707652, lng: -58.242300, temp: '38.4', hb: '72' },
-      { name: 'Lola', animalType: 'cattle', deviceUid: 'COLLAR-02', lat: -34.707546, lng: -58.239348, temp: '38.1', hb: '68' },
-      { name: 'Luna', animalType: 'cattle', deviceUid: 'COLLAR-03', lat: -34.709948, lng: -58.242870, temp: '38.7', hb: '75' },
+      { name: 'Lora', animalType: 'cattle', deviceUid: 'COLLAR-01', lat: -34.707652, lng: -58.242300, temp: '38.4' },
+      { name: 'Lola', animalType: 'cattle', deviceUid: 'COLLAR-02', lat: -34.707546, lng: -58.239348, temp: '38.1' },
+      { name: 'Luna', animalType: 'cattle', deviceUid: 'COLLAR-03', lat: -34.709948, lng: -58.242870, temp: '38.7' },
     ]
 
     // this loop checks if the sample animals already exist in the database and inserts them if they don't
@@ -554,10 +550,10 @@ export async function seedSampleData() {
       
       //insert into devices table and get the device id
       const deviceInsert = await client.query(
-        `INSERT INTO devices (device_uid, hardware_version, firmware_version, last_battery_level, last_seen)
-         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+        `INSERT INTO devices (device_uid, hardware_version, firmware_version, last_seen)
+         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
          RETURNING id`,
-        [animal.deviceUid, 'v1.0', '1.2.3', 87/*battery level is integer*/]
+        [animal.deviceUid, 'v1.0', '1.2.3']
       )
       const deviceId = deviceInsert.rows[0].id
 
@@ -570,9 +566,9 @@ export async function seedSampleData() {
 
       // insert into gps_positions table using a PostGIS POINT in the `location` column
       await client.query(
-        `INSERT INTO gps_positions (animal_id, device_id, timestamp, location, temperature, heartbeat, speed, accuracy)
-         VALUES ($1, $2, CURRENT_TIMESTAMP, ST_SetSRID(ST_MakePoint($3, $4), 4326), $5, $6, $7, $8)`,
-        [animalId, deviceId, animal.lng, animal.lat, Number(animal.temp), Number(animal.hb), 1.1, 2.5]
+        `INSERT INTO gps_positions (animal_id, device_id, timestamp, location, temperature, speed, accuracy)
+         VALUES ($1, $2, CURRENT_TIMESTAMP, ST_SetSRID(ST_MakePoint($3, $4), 4326), $5, $6, $7)`,
+        [animalId, deviceId, animal.lng, animal.lat, Number(animal.temp), 1.1, 2.5]
       )
 
       //insert into animal_daily_statistics table with random values for distance_travelled, movement_time, and sleep_time

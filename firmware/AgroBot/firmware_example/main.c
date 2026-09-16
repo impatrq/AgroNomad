@@ -20,12 +20,10 @@
  *      HARDWARE_VERS
  *      
  *      TEMP
- *      HB
  * 
  *      LAT
  *      LONG     
  * 
- *      BATTERYLEVEL
  * }
  */
 
@@ -120,12 +118,9 @@ int send_collar_data(
     const char *hardware_vers,
 
     const char *temp,
-    const char *hb,
     
     double lat,
-    double lon,
-
-    int battery_level
+    double lon
 )
 {
     char json[BUFFER_SIZE];
@@ -141,17 +136,13 @@ int send_collar_data(
         "\"HARDWARE_VERS\":\"%s\","
         "\"LAT\":%.6f,"
         "\"LONG\":%.6f,"
-        "\"BATTERY_LEVEL\":%d,"
-        "\"TEMP\":\"%s\","
-        "\"HB\":\"%s\"}\n",
+        "\"TEMP\":\"%s\n",
         id,
         firmware_vers,
         hardware_vers,
         lat,
         lon,
-        battery_level,
-        temp,
-        hb
+        temp
     );
 
     printf("Sending:\n%s", json);
@@ -188,13 +179,10 @@ int main(void)
         "1.0",//hardware vers 
 
         "38.4",//temp
-        "72",//heart rate
 
         -34.707652,//lat
-        -58.2423,//lon
-        
-        67//battery level
-        
+        -58.2423//lon
+                
     );
 
 
@@ -205,12 +193,10 @@ int main(void)
         "1.0",//hardware vers 
 
         "38.1",
-        "68",
 
         -34.707546,
-        -58.239348,
-        
-        88
+        -58.239348
+
     );
 
 
@@ -236,13 +222,10 @@ int main(void)
             "1.0",//hardware vers 
 
             "38.4",//temp
-            "72",//heart rate
 
             -34.707652,//lat
-            -58.2423,//lon
-            
-            67//battery level
-            
+            -58.2423//lon
+                        
         );
 
         /*

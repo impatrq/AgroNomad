@@ -66,7 +66,6 @@
 			<column name="device_uid" type="text" mandatory="y" />
 			<column name="hardware_version" type="text" />
 			<column name="firmware_version" type="text" />
-			<column name="last_battery_level" type="text" />
 			<column name="last_seen" type="timestamp" >
 				<defo><![CDATA[CURRENT_TIMESTAMP]]></defo>
 			</column>
@@ -87,7 +86,6 @@
 			<column name="latitude" type="double precision" />
 			<column name="longitude" type="double precision" />
 			<column name="temperature" type="text" />
-			<column name="heartbeat" type="text" />
 			<column name="speed" type="double precision" />
 			<column name="accuracy" type="double precision" />
 			<index name="pk_gps_positions" unique="PRIMARY_KEY" >
