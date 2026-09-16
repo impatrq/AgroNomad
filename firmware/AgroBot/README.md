@@ -27,10 +27,12 @@ Frontend React + Leaflet
 |Componente|Responsabilidad|
 |---|---|
 | `firmware_example/main.c`| Simula un collar que envia datos por TCP.|
+|-----|-----|
 | `server/server.js`| Recibe TCP, procesa mensajes y expone la API HTTP.|
 | `server/db/index.js`| Conecta con PostgreSQL y ejecuta las operaciones de base de datos.|
+| `server/utils/utils.js`| Normaliza payloads y extrae objetos JSON recibidos por TCP.| 
 | `server/db/schema.sql`| Define tablas, relaciones e indices de PostgreSQL/PostGIS.|
-| `server/utils/utils.js`| Normaliza payloads y extrae objetos JSON recibidos por TCP.|
+|-----|-----|
 | `client/src/App.jsx`| Controla la navegacion basica del frontend.|
 | `client/src/pages/Home.jsx`| Muestra el mapa, los animales y los limites de los campos.|
 | `client/src/pages/Login.jsx`| Muestra un formulario de login, actualmente incompleto.|
@@ -39,7 +41,7 @@ Frontend React + Leaflet
 ## 3. Flujo completo de datos
 
 1. `main.c` se conecta a `127.0.0.1:4001`.
-2. El collar envia un JSON con ID, posicion, temperatura, frecuencia cardiaca y bateria.
+2. El collar envia un JSON con ID, posicion y temperatura.
 3. `createTcpServer()` en `server.js` recibe los bytes.
 4. `handleIncomingData()` extrae y parsea los objetos JSON.
 5. `normalizeAnimalPayload()` valida y normaliza los nombres de los campos.
@@ -81,9 +83,7 @@ Payload que genera:
   "HARDWARE_VERS": "1.0",
   "LAT": -34.707652,
   "LONG": -58.242300,
-  "BATTERY_LEVEL": 67,
   "TEMP": "38.4",
-  "HB": "72"
 }
 ```
 
@@ -98,7 +98,7 @@ El salto de linea al final permite separar mensajes consecutivos.
 
 ### Limitacion actual
 
-El programa usa datos fijos. No recibe aun datos reales de LoRa. Ademas, el backend actualmente guarda temperatura, frecuencia cardiaca y ubicacion, pero no usa correctamente `FIRMWARE_VERS`, `HARDWARE_VERS` ni `BATTERY_LEVEL` del payload.
+El programa usa datos fijos. No recibe aun datos reales de LoRa. Ademas, el backend actualmente guarda temperatura y ubicacion, pero no usa correctamente `FIRMWARE_VERS` ni `HARDWARE_VERS` del payload.
 
 ## 5. Backend: `server/server.js`
 
@@ -183,8 +183,7 @@ Acepta distintas variantes de nombres (`ID`, `id`, `LAT`, `lat`, etc.), valida I
   name,
   lat,
   lng,
-  temp,
-  hb
+  temp
 }
 ```
 
@@ -275,8 +274,7 @@ Obtiene los animales del usuario demo, el dispositivo asociado y la ultima posic
   name,
   lat,
   lng,
-  temp,
-  hb
+  temp
 }
 ```
 
@@ -284,7 +282,7 @@ Obtiene los animales del usuario demo, el dispositivo asociado y la ultima posic
 
 Guarda una lectura del collar:
 
-1. Normaliza ID, nombre, coordenadas, temperatura y frecuencia cardiaca.
+1. Normaliza ID, nombre, coordenadas y temperatura.
 2. Busca el dispositivo por `device_uid`.
 3. Si no existe, crea animal, dispositivo y relacion entre ambos.
 4. Actualiza el nombre del animal.
@@ -322,7 +320,7 @@ Activa PostGIS y define estas tablas:
 | `users` | Usuarios de la aplicacion. |
 | `yards` | Campos y poligonos de sus limites. |
 | `animals` | Animales, tipo, nombre y campo asignado. |
-| `devices` | Collares, version, bateria y ultima conexion. |
+| `devices` | Collares, version y ultima conexion. |
 | `animal_devices` | Relacion historica entre animales y dispositivos. |
 | `gps_positions` | Historial de ubicaciones y sensores. |
 | `animal_daily_statistics` | Distancia, movimiento y sueño por dia. |
@@ -411,15 +409,14 @@ Muestra formulario de email y contraseña y envia `POST /api/login`. Sin embargo
 Estas funciones aparecen en los documentos de planificacion, pero no estan terminadas en el codigo actual:
 
 1. Actualizar `devices.last_seen` en cada paquete recibido.
-2. Guardar `BATTERY_LEVEL` en `devices.last_battery_level`.
-3. Guardar `FIRMWARE_VERS` y `HARDWARE_VERS` enviados por el collar.
-4. Implementar consultas y endpoints para el historial de posiciones.
-5. Dibujar trayectos historicos con colores segun movimiento.
-6. Detectar y marcar animales fuera de los limites del campo.
-7. Implementar login, cookies/sesiones y proteccion de rutas.
-8. Agregar la ruta frontend `/history/:id`.
-9. Separar mejor datos demo de datos reales.
-10. Reemplazar polling por WebSocket si se necesita tiempo real.
-11. Agregar limites de tamaño y validacion mas robusta para mensajes TCP.
-12. Revisar el manejo de errores de operaciones asincronas del socket.
-13. Agregar backups automaticos y almacenamiento de telemetria si el volumen crece.
+2. Guardar `FIRMWARE_VERS` y `HARDWARE_VERS` enviados por el collar.
+3. Implementar consultas y endpoints para el historial de posiciones.
+4. Dibujar trayectos historicos con colores segun movimiento.
+5. Detectar y marcar animales fuera de los limites del campo.
+6. Implementar login, cookies/sesiones y proteccion de rutas.
+7. Agregar la ruta frontend `/history/:id`.
+8. Separar mejor datos demo de datos reales.
+9. Reemplazar polling por WebSocket si se necesita tiempo real.
+10. Agregar limites de tamaño y validacion mas robusta para mensajes TCP.
+11. Revisar el manejo de errores de operaciones asincronas del socket.
+12. Agregar backups automaticos y almacenamiento de telemetria si el volumen crece.
