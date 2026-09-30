@@ -38,7 +38,7 @@ RTC_DATA_ATTR uint64_t tiempo_switch = 0;
 RTC_DATA_ATTR bool sistema_inicializado = false;
 
 // Conmutación de baterías
-#define TIEMPO_CAMBIO_BATS 10ULL 
+#define TIEMPO_CAMBIO_BATS 10
 
 // VARIABLES DE DATOS
 double latitude; double longitude; char lat_hemisphere; char lon_hemisphere; float velocidad;
@@ -100,7 +100,10 @@ void switch_mosfet() {
 }
 
 uint64_t tiempo_medido(void) {
-    return (uint64_t)(esp_timer_get_time() / 1000000ULL);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    // gettimeofday devuelve segundos en tv_sec. Ya no hace falta dividir por 1000000.
+    return (uint64_t)tv.tv_sec;
 }
 
 void hora_actual() {
@@ -199,6 +202,7 @@ void sensar_enviar(void *pvParameters){
 
     ESP_LOGI("func_sensar_enviar","Empaquetando y enviando...");
     payload_t paquete;
+    paquete.id_collar = 122;
     paquete.latitud = (int32_t)(latitude * 1000000.0);
     paquete.longitud = (int32_t)(longitude * 1000000.0);
     paquete.temperatura = temp_interna;
@@ -206,8 +210,7 @@ void sensar_enviar(void *pvParameters){
     transmitir_datos(&paquete);
 
     // Evalúa y aplica el cambio de batería
-    //hora_actual();
-    switch_mosfet();
+    hora_actual();
     // Congelar estado de pines para Deep Sleep
     ESP_LOGI("func_sensar_enviar","Congelando MOSFETs...");
     gpio_hold_en(MOSFET1);
@@ -215,6 +218,8 @@ void sensar_enviar(void *pvParameters){
     gpio_hold_en(MOSFET3);
     gpio_hold_en(MOSFET4);
     gpio_deep_sleep_hold_en(); // <--- OBLIGATORIO PARA DEEP SLEEP
+
+    mpu6050_enable_wom(I2C_NUM_0, MPU6050_THRESHOLD);
 
     ESP_LOGI("func_sensar_enviar","Limpiando INT MPU.");
     mpu6050_clear_int(I2C_NUM_0); 
@@ -254,6 +259,10 @@ void app_main(void)
         gpio_hold_en(MOSFET3);
         gpio_hold_en(MOSFET4);
         gpio_deep_sleep_hold_en(); // <--- OBLIGATORIO PARA DEEP SLEEP
+
+        while(gpio_get_level(WAKEUP_GPIO) == 1) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+        }
         
         ESP_LOGI("MAIN_fwu","Preparo interrupción.");
         esp_sleep_enable_ext0_wakeup(WAKEUP_GPIO, WAKEUP_LEVEL); 

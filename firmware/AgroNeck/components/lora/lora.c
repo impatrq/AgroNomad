@@ -142,18 +142,17 @@ void transmitir_datos(payload_t *paquete){
     // *etc, despues llamo la funcion enviando el paquete como argumento
     */
     
-    lora_send_packetb((uint8_t*)&paquete,sizeof(payload_t)); // envio el paquete, que con este formato son 13 bytes
+    lora_send_packetb((uint8_t*)paquete,sizeof(payload_t)); // envio el paquete, que con este formato son 13 bytes
 }
 
 void lora_init(void){
-    // Configurar pines CS y RST como salida
+    lora_spi_init();
+
     gpio_reset_pin(LORA_RESET);
     gpio_set_direction(LORA_RESET, GPIO_MODE_OUTPUT);
-    gpio_reset_pin(LORA_CS);
     lora_reset();
 
-    // inicializacion de SPI_LoRa
-    lora_spi_init();
+    vTaskDelay(pdMS_TO_TICKS(15));
 
     uint8_t version = lora_read_register(0x42);
     ESP_LOGI(TAG, "LoRa version register: 0x%02X", version);
