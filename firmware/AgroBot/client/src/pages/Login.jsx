@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiUrl } from "../lib/api";
 
 export default function Login({ onNavigate, onLogin }) {
   const [email, setEmail] = useState("");
@@ -11,7 +12,7 @@ export default function Login({ onNavigate, onLogin }) {
     setError("");
 
     try {
-      const response = await fetch("/api/login", {
+      const response = await fetch(apiUrl("/api/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { apiUrl } from '../lib/api'
 
 function normalizeBoundaryGroups(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -67,7 +68,7 @@ export default function useAnimalDashboard() {
       setError(null)
 
       try {
-        const response = await fetch('/api/animals')
+        const response = await fetch(apiUrl('/api/animals'))
         if (!response.ok) {
           throw new Error(`${response.status} ${response.statusText}`)
         }
@@ -134,7 +135,7 @@ export default function useAnimalDashboard() {
       throw new Error('No hay un animal seleccionado.')
     }
 
-    const response = await fetch('/api/animals/rename', {
+    const response = await fetch(apiUrl('/api/animals/rename'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: selectedAnimal.id, name: newName }),

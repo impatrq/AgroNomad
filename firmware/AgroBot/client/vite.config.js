@@ -14,7 +14,11 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/api/cows': {
+      '/api/animals': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
+      '/api/yards': {
         target: 'http://localhost:4000',
         changeOrigin: true,
       },

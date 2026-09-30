@@ -32,7 +32,6 @@ CREATE TABLE IF NOT EXISTS devices (
   device_uid TEXT NOT NULL UNIQUE,
   hardware_version TEXT,
   firmware_version TEXT,
-  last_battery_level INTEGER,
   last_seen TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -51,7 +50,6 @@ CREATE TABLE IF NOT EXISTS gps_positions (
   timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   location GEOGRAPHY(POINT, 4326),
   temperature DOUBLE PRECISION,
-  heartbeat INTEGER,
   speed DOUBLE PRECISION,
   accuracy DOUBLE PRECISION
 );

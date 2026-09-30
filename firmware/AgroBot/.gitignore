@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 *.pr
+
+#firmware
+
+/firmware_example/build/
