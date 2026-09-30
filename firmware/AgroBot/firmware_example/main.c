@@ -11,21 +11,56 @@
 
 #define BUFFER_SIZE 4096
 
-
+typedef struct {
+    char id[32];
+    char firmware_vers[16];
+    char hardware_vers[16];
+    char temp[32];
+    double lat;
+    double lon;
+} collar_data_t;
 
 /**
- * Data sent by every AgroNeck ---> {
- *      DEVICE_ID
- *      FIRMWARE_VERS
- *      HARDWARE_VERS
- *      
- *      TEMP
- * 
- *      LAT
- *      LONG     
- * 
- * }
+ * In the real AgroNeck, these values come from sensors/drivers:
+ * - GPS module for LAT/LONG
+ * - LM35 / MLX for temperature
+ * - device ID and firmware metadata stored in the device
  */
+static void read_agro_neck_device_id(char *id, size_t size)
+{
+    snprintf(id, size, "COLLAR-01");
+}
+
+static void read_agro_neck_firmware_version(char *version, size_t size)
+{
+    snprintf(version, size, "1.0");
+}
+
+static void read_agro_neck_hardware_version(char *version, size_t size)
+{
+    snprintf(version, size, "1.0");
+}
+
+static double read_agro_neck_temperature_c(void)
+{
+    return 38.4;
+}
+
+static void read_agro_neck_position(double *lat, double *lon)
+{
+    *lat = -34.707652;
+    *lon = -58.242300;
+}
+
+static void read_agro_neck_data(collar_data_t *data)
+{
+    read_agro_neck_device_id(data->id, sizeof(data->id));
+    read_agro_neck_firmware_version(data->firmware_vers, sizeof(data->firmware_vers));
+    read_agro_neck_hardware_version(data->hardware_vers, sizeof(data->hardware_vers));
+    read_agro_neck_position(&data->lat, &data->lon);
+
+    snprintf(data->temp, sizeof(data->temp), "%.1f", read_agro_neck_temperature_c());
+}
 
 
 
@@ -166,72 +201,24 @@ int main(void)
         return EXIT_FAILURE;
     }
 
-
-    /*
-     * Example:
-     * These would normally come from your LoRa receiver.
-     send_collar_data(
-        sock,
-        "COLLAR-01",//device id
-        "1.0",//firmware vers
-        "1.0",//hardware vers 
-
-        "38.4",//temp
-
-        -34.707652,//lat
-        -58.2423//lon
-                
-    );
-     */
-
-    
-
-
-    /*
-     * Example of continuously sending data.
-     *
-     * In your real application, replace this
-     * with your LoRa receive function.
-     */
     int result;
-    
+
     while (1)
     {
+        collar_data_t collar;
+        read_agro_neck_data(&collar);
+
         sleep(5);
 
-        /*
-         * New data received from LoRa
-         */
-
         result = send_collar_data(
             sock,
-            "COLLAR-01",//device id
-            "1.0",//firmware vers
-            "1.0",//hardware vers 
-
-            "38.4",//temp
-
-            -34.707652,//lat
-            -58.2423//lon
-                        
+            collar.id,
+            collar.firmware_vers,
+            collar.hardware_vers,
+            collar.temp,
+            collar.lat,
+            collar.lon
         );
-        result = send_collar_data(
-            sock,
-            "COLLAR-02",//device id
-            "1.0",//firmware vers
-            "1.0",//hardware vers 
-
-            "38.4",//temp
-
-            -34.707651,//lat
-            -58.2422//lon
-                        
-        );
-
-        /*
-         * If the connection was lost,
-         * reconnect.
-         */
 
         if (result < 0)
         {
@@ -250,7 +237,6 @@ int main(void)
             }
         }
     }
-
 
     close(sock);
 
