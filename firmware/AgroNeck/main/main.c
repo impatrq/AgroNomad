@@ -199,7 +199,7 @@ void sensar_enviar(void *pvParameters){
     paquete.longitud = (int32_t)(longitude * 1000000.0);
     paquete.temperatura = temp_interna;
 
-    transmitir_datos(&paquete);
+    //transmitir_datos(&paquete);
 
     // Evalúa y aplica el cambio de batería
     hora_actual();
