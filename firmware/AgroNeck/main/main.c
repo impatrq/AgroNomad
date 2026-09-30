@@ -38,7 +38,7 @@ RTC_DATA_ATTR uint64_t tiempo_switch = 0;
 RTC_DATA_ATTR bool sistema_inicializado = false;
 
 // Conmutación de baterías
-#define TIEMPO_CAMBIO_BATS 30ULL 
+#define TIEMPO_CAMBIO_BATS 10ULL 
 
 // VARIABLES DE DATOS
 double latitude; double longitude; char lat_hemisphere; char lon_hemisphere; float velocidad;
@@ -202,8 +202,8 @@ void sensar_enviar(void *pvParameters){
     //transmitir_datos(&paquete);
 
     // Evalúa y aplica el cambio de batería
-    hora_actual();
-
+    //hora_actual();
+    switch_mosfet();
     // Congelar estado de pines para Deep Sleep
     ESP_LOGI("func_sensar_enviar","Congelando MOSFETs...");
     gpio_hold_en(MOSFET1);
