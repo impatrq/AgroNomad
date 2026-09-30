@@ -195,6 +195,7 @@ void sensar_enviar(void *pvParameters){
 
     ESP_LOGI("func_sensar_enviar","Empaquetando y enviando...");
     payload_t paquete;
+    paquete.id_collar = 122;
     paquete.latitud = (int32_t)(latitude * 1000000.0);
     paquete.longitud = (int32_t)(longitude * 1000000.0);
     paquete.temperatura = temp_interna;

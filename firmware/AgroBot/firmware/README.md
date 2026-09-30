@@ -74,7 +74,7 @@ El receptor actualmente imprime por consola serie la trama recibida; todavía no
 
 ## Compilación y ejecución
 
-Para compilar el simulador TCP en Linux:
+Para compilar el simulador TCP:
 
 ```bash
 gcc main.c -o agro-neck-example

@@ -142,7 +142,7 @@ void transmitir_datos(payload_t *paquete){
     // *etc, despues llamo la funcion enviando el paquete como argumento
     */
     
-    lora_send_packetb((uint8_t*)&paquete,sizeof(payload_t)); // envio el paquete, que con este formato son 13 bytes
+    lora_send_packetb((uint8_t *)paquete, sizeof(*paquete));
 }
 
 void lora_init(void){
