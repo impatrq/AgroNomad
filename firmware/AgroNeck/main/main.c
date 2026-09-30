@@ -179,13 +179,17 @@ void internal_temp() {
 }
 
 void sensar_enviar(void *pvParameters){ 
+    ESP_LOGI("#","####################################################");
     ESP_LOGI("func_sensar_enviar","Iniciando buses y perifericos.");
     gps_starting();
     init_i2c();
     mpu6050_init(I2C_NUM_0);
     lm35_init();
     init_mosfet_gpios();
+    lora_init();
+    ESP_LOGI("#","luego de lora init");
 
+    ESP_LOGI("#","####################################################");
     ESP_LOGI("func_sensar_enviar","Leyendo todos los sensores...");
     read_gps();
     read_mpu6050();
@@ -199,7 +203,7 @@ void sensar_enviar(void *pvParameters){
     paquete.longitud = (int32_t)(longitude * 1000000.0);
     paquete.temperatura = temp_interna;
 
-    //transmitir_datos(&paquete);
+    transmitir_datos(&paquete);
 
     // Evalúa y aplica el cambio de batería
     //hora_actual();
