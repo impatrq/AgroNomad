@@ -28,3 +28,4 @@ dist-ssr
 #firmware
 
 /firmware_example/build/
+/firmware_example/agro-neck-example
