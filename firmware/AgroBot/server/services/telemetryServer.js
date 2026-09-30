@@ -2,7 +2,7 @@ import { createServer } from 'net'
 
 import { extractJsonPayloads, processTelemetryPayload } from './telemetryParser.js'
 
-export function createTelemetryServer() {
+export function createTelemetryServer({ onTelemetryProcessed } = {}) {
   return createServer((socket) => {
     let buffer = ''
     socket.setEncoding('utf8')
@@ -16,6 +16,7 @@ export function createTelemetryServer() {
         try {
           await processTelemetryPayload(payload)//upload to db. Table --> gps_positions.
           console.log('Telemetry payload processed successfully')
+          await onTelemetryProcessed?.()
         } catch (error) {
           console.warn('Could not process telemetry payload:', error.message)
         }

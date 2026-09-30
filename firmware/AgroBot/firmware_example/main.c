@@ -170,9 +170,7 @@ int main(void)
     /*
      * Example:
      * These would normally come from your LoRa receiver.
-     */
-
-    send_collar_data(
+     send_collar_data(
         sock,
         "COLLAR-01",//device id
         "1.0",//firmware vers
@@ -184,6 +182,9 @@ int main(void)
         -58.2423//lon
                 
     );
+     */
+
+    
 
 
     /*
@@ -192,7 +193,8 @@ int main(void)
      * In your real application, replace this
      * with your LoRa receive function.
      */
-
+    int result;
+    
     while (1)
     {
         sleep(5);
@@ -201,7 +203,7 @@ int main(void)
          * New data received from LoRa
          */
 
-        int result = send_collar_data(
+        result = send_collar_data(
             sock,
             "COLLAR-01",//device id
             "1.0",//firmware vers
@@ -211,6 +213,18 @@ int main(void)
 
             -34.707652,//lat
             -58.2423//lon
+                        
+        );
+        result = send_collar_data(
+            sock,
+            "COLLAR-02",//device id
+            "1.0",//firmware vers
+            "1.0",//hardware vers 
+
+            "38.4",//temp
+
+            -34.707651,//lat
+            -58.2422//lon
                         
         );
 

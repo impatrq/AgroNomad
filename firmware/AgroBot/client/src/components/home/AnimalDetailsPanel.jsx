@@ -1,3 +1,50 @@
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  HeartPulse,
+  MapPin,
+  Thermometer,
+  TrendingUp,
+} from "lucide-react";
+
+function ActivityItem({ animal, message, time, type }) {
+  const isWarning = type === "warning";
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-white p-3">
+      <div
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+          isWarning ? "bg-orange-100" : "bg-emerald-100"
+        }`}
+      >
+        {isWarning ? (
+          <AlertTriangle className="h-4 w-4 text-orange-500" />
+        ) : (
+          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-[#0f2340]">
+            {animal}
+          </p>
+
+          <span className="text-xs text-slate-400">
+            {time}
+          </span>
+        </div>
+
+        <p className="truncate text-sm text-slate-500">
+          {message}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function AnimalDetailsPanel({ selectedAnimal, onNavigate, onRenameRequest }) {
   const handleCopyCoordinates = async () => {
     if (!selectedAnimal) {
@@ -26,12 +73,13 @@ export default function AnimalDetailsPanel({ selectedAnimal, onNavigate, onRenam
   }
 
   return (
-    <aside className="space-y-6">
-      <div id="details-section" className="rounded-[28px] border border-green-200 bg-white p-6 shadow-sm">
+    <aside className="h-full">
+      <div id="details-section" className="h-full rounded-[28px] border border-green-200 bg-white p-6 shadow-sm">
         <h3 className="text-xl font-semibold">Animal selecionado</h3>
         <div className="mt-4 space-y-3">
           {selectedAnimal ? (
-            <div className="space-y-3">
+            <div className="space-y-5">
+
               <div className="rounded-3xl bg-slate-100 p-4">
                 <p className="text-sm text-slate-500">ID(identificador unico de collar)</p>
                 <p className="mt-1 text-lg font-semibold">{selectedAnimal.id}</p>
@@ -50,6 +98,8 @@ export default function AnimalDetailsPanel({ selectedAnimal, onNavigate, onRenam
                   </button>
                 </div>
               </div>
+
+              
 
               <div className="rounded-3xl bg-slate-100 p-4">
                 <p className="text-sm text-slate-500">Posicion</p>
@@ -79,6 +129,8 @@ export default function AnimalDetailsPanel({ selectedAnimal, onNavigate, onRenam
                   </button>
                 </div>
               </div>
+
+              <ActivityItem animal={"Luna"} message={"Entro al potrero"} time="Hace 30 min" type="success" />
             </div>
           ) : (
             <p className="text-slate-500 text-center py-4">Tocar sobre animal para ver detalles</p>
