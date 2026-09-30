@@ -27,5 +27,5 @@ dist-ssr
 
 #firmware
 
-/firmware_example/build/
-/firmware_example/agro-neck-example
+/firmware/build/
+/firmware/agro-neck-example

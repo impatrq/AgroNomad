@@ -1,6 +1,6 @@
 # AgroNomad - Ejemplo de Firmware
 
-Esta carpeta contiene un ejemplo en C que simula el comportamiento de un AgroNeck conectado al backend. El programa crea una conexión TCP, arma mensajes con la información del collar y los envía al servidor de telemetría.
+Esta carpeta contiene dos modos de prueba: un simulador que envía JSON por TCP al backend y un firmware ESP-IDF para la placa AgroBot que recibe paquetes LoRa del AgroNeck.
 
 Este código no es todavía el firmware final de los AgroNeck. Los valores utilizados son fijos y representan los datos que, en una implementación real, deberían obtenerse desde los sensores y el receptor de comunicación del dispositivo.
 
@@ -28,13 +28,9 @@ Ejemplo del formato esperado:
 }
 ```
 
-## Funcionamiento de `main.c`
+## Simulador TCP de escritorio
 
-1. Abre un socket TCP usando la IP y el puerto configurados.
-2. Se conecta al servidor de telemetría del backend.
-3. Envía datos de ejemplo de `COLLAR-01` y `COLLAR-02`.
-4. Cada cinco segundos vuelve a enviar una lectura de `COLLAR-01`.
-5. Si el envío falla, cierra el socket e intenta conectarse nuevamente.
+La compilación GCC habitual conserva el comportamiento de simulación: se conecta al backend por TCP, envía JSON de ejemplo cada cinco segundos e intenta reconectarse si falla.
 
 ## Funciones principales
 
@@ -56,22 +52,29 @@ En `main.c` se encuentran los valores de conexión:
 
 `SERVER_IP` debe apuntar al equipo donde se ejecuta el servidor y `SERVER_PORT` debe coincidir con el puerto TCP configurado en el backend. Para una prueba local, `127.0.0.1:4001` es la configuración predeterminada.
 
-## Integración con AgroNeck reales
+## Receptor LoRa ESP32
 
-En el firmware definitivo, los datos fijos de `main()` deberían reemplazarse por funciones que:
+El proyecto ESP-IDF está en `esp-idf/`. Su `main.c` inicializa el SX1278 en recepción continua a 915 MHz, espera paquetes y decodifica la estructura binaria definida por el AgroNeck:
 
-- Reciban los mensajes provenientes de LoRa u otro sistema de comunicación.
-- Lean la temperatura desde el sensor correspondiente.
-- Obtengan la ubicación desde el módulo GPS.
-- Utilicen el ID único almacenado en el dispositivo.
-- Informen las versiones reales del hardware y firmware.
-- Envíen cada lectura con la frecuencia necesaria para el seguimiento.
+- `uint16_t id_collar`
+- `float temperatura`
+- `int32_t latitud`, escalada por 1.000.000
+- `int32_t longitud`, escalada por 1.000.000
 
-El backend recibe estos datos por TCP en el puerto `4001`, los valida y los almacena en PostgreSQL/PostGIS. Luego el frontend puede consultar la última posición y temperatura de cada animal.
+Para compilar y ejecutar en la placa ESP32 de AgroBot:
+
+```bash
+cd firmware/AgroBot/firmware_example/esp-idf
+idf.py set-target esp32
+idf.py build
+idf.py -p /dev/ttyUSB0 flash monitor
+```
+
+El receptor actualmente imprime por consola serie la trama recibida; todavía no la reenvía al backend. El AgroNeck y AgroBot deben usar la misma frecuencia y configuración LoRa.
 
 ## Compilación y ejecución
 
-El archivo `CMakeLists.txt` está reservado para configurar la compilación del ejemplo. Como alternativa, en un sistema Linux se puede compilar directamente con:
+Para compilar el simulador TCP en Linux:
 
 ```bash
 gcc main.c -o agro-neck-example
@@ -82,7 +85,6 @@ Antes de ejecutarlo, el servidor backend debe estar iniciado y escuchando en el 
 
 ## Limitaciones actuales
 
-- Los datos GPS y la temperatura son valores de prueba.
-- Solo se envía periódicamente la información de `COLLAR-01` después del envío inicial.
-- No existe todavía una integración real con sensores, GPS o LoRa.
-- El programa está pensado como referencia para desarrollar el firmware que utilizarán los AgroNeck.
+- El simulador sigue usando datos GPS y temperatura de prueba.
+- El receptor LoRa decodifica e imprime; todavía no convierte la trama a JSON ni la envía al backend.
+- Quedan pendientes los problemas conocidos del emisor AgroNeck antes de validar una recepción real de extremo a extremo.
