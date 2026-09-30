@@ -28,7 +28,9 @@ El frontend de AgroNomad es una aplicación web desarrollada con React, Vite, Ta
 El frontend obtiene los datos principales desde:
 
 - `GET /api/animals`: animales, coordenadas, nombres y temperaturas.
+- `GET /api/yards`: coordenadas de limites del campo/s definidos.
 - `POST /api/animals/rename`: actualización del nombre de un animal.
+- `GET /api/status`: Devuelve el estado del servidor y la cantidad de animales.
 
 Las respuestas de la API se normalizan para aceptar campos como `ID`, `LAT`, `LONG` y `TEMP`, además de sus versiones en minúsculas.
 
