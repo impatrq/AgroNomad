@@ -163,7 +163,7 @@ void lora_init(void){
     vTaskDelay(pdMS_TO_TICKS(10));
     lora_write_register(0x01, 0x81); // RegOpMode: LoRa + standby
 
-    // Frecuencia 915 MHz (para SX1278) > cambiado de 433 a 915, freq de lora en argentina 
+    // Frecuencia 433 MHz (para SX1278) 
     lora_write_register(0x06, 0x6C);
     lora_write_register(0x07, 0x40);
     lora_write_register(0x08, 0x00);
