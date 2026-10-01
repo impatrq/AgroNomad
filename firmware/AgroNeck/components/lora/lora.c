@@ -146,11 +146,12 @@ void transmitir_datos(payload_t *paquete){
 }
 
 void lora_init(void){
-    lora_spi_init();
-
     gpio_reset_pin(LORA_RESET);
     gpio_set_direction(LORA_RESET, GPIO_MODE_OUTPUT);
+    gpio_reset_pin(LORA_CS);
     lora_reset();
+
+    lora_spi_init();
 
     vTaskDelay(pdMS_TO_TICKS(15));
 
@@ -163,9 +164,13 @@ void lora_init(void){
     lora_write_register(0x01, 0x81); // RegOpMode: LoRa + standby
 
     // Frecuencia 915 MHz (para SX1278) > cambiado de 433 a 915, freq de lora en argentina 
-    lora_write_register(0x06, 0xE4);
-    lora_write_register(0x07, 0xC0);
+    lora_write_register(0x06, 0x6C);
+    lora_write_register(0x07, 0x40);
     lora_write_register(0x08, 0x00);
+
+    lora_write_register(0x1D, 0x72);
+    lora_write_register(0x1E, 0x74);
+    lora_write_register(0x26, 0x00);
 
     // Potencia de transmisión
     lora_write_register(0x09, 0x8F); // Potencia supuestamente "ideal"
