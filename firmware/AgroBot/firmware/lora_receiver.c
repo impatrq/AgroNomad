@@ -183,11 +183,11 @@ static int lora_initialize(void)
     if (lora_write_register(0x01, 0x80) < 0) return -1;
     usleep(10000);
     if (lora_write_register(0x01, 0x81) < 0) return -1;
-    if (lora_write_register(0x06, 0xE4) < 0) return -1;
-    if (lora_write_register(0x07, 0xC0) < 0) return -1;
+    if (lora_write_register(0x06, 0x6C) < 0) return -1;
+    if (lora_write_register(0x07, 0x40) < 0) return -1;
     if (lora_write_register(0x08, 0x00) < 0) return -1;
     if (lora_write_register(0x1D, 0x72) < 0) return -1;
-    if (lora_write_register(0x1E, 0x70) < 0) return -1;
+    if (lora_write_register(0x1E, 0x74) < 0) return -1;
     if (lora_write_register(0x26, 0x04) < 0) return -1;
     if (lora_write_register(0x39, 0x12) < 0) return -1;
     if (lora_write_register(0x0E, 0x00) < 0) return -1;
@@ -196,7 +196,7 @@ static int lora_initialize(void)
     if (lora_write_register(0x12, 0xFF) < 0) return -1;
     if (lora_write_register(0x01, 0x85) < 0) return -1;
 
-    printf("Listening for AgroNeck LoRa packets at 915 MHz\n");
+    printf("Listening for AgroNeck LoRa packets at 433 MHz\n");
     return 0;
 }
 
@@ -324,6 +324,12 @@ int main(void)
                     sizeof(agro_neck_payload_t), packet_length);
             continue;
         }
+
+        printf("Raw LoRa packet (%zu bytes):", packet_length);
+        for (size_t index = 0; index < packet_length; index++) {
+            printf(" %02X", packet[index]);
+        }
+        putchar('\n');
 
         agro_neck_payload_t payload;
         memcpy(&payload, packet, sizeof(payload));
