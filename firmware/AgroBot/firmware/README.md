@@ -94,5 +94,5 @@ Antes de ejecutarlo, el servidor backend debe estar iniciado y escuchando en el 
 ## Limitaciones actuales
 
 - El simulador sigue usando datos GPS y temperatura de prueba.
-- El receptor LoRa decodifica e imprime; todavía no convierte la trama a JSON ni la envía al backend.
-- La recepción real requiere habilitar SPI y conectar la placa con la Raspberry como indica el PCB.
+- El receptor reenvía la telemetría al backend, pero la recepción de radio debe validarse en el hardware conectado.
+- Consultá `../Setup.md` para los pasos de instalación y prueba de extremo a extremo.
