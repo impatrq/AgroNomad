@@ -33,7 +33,7 @@ static void lora_spi_init() {
     ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 5*1000*1000,
+        .clock_speed_hz = 1*1000*1000,
         .mode = 0,
         .spics_io_num = LORA_CS,
         .queue_size = 7,
@@ -146,13 +146,13 @@ void transmitir_datos(payload_t *paquete){
 }
 
 void lora_init(void){
-    gpio_reset_pin(LORA_RESET);
-    gpio_set_direction(LORA_RESET, GPIO_MODE_OUTPUT);
-    gpio_reset_pin(LORA_CS);
-    lora_reset();
-
     lora_spi_init();
 
+    // 2. AHORA configuramos el pin de reset y reiniciamos el módulo
+    gpio_reset_pin(LORA_RESET);
+    gpio_set_direction(LORA_RESET, GPIO_MODE_OUTPUT);
+    lora_reset();
+    
     vTaskDelay(pdMS_TO_TICKS(15));
 
     uint8_t version = lora_read_register(0x42);
