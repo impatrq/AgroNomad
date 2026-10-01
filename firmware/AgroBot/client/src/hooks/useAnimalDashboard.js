@@ -90,7 +90,7 @@ export default function useAnimalDashboard() {
 
       if (!isMounted) return
 
-      const socket = new WebSocket("ws://localhost:4000/ws/animals");
+      const socket = new WebSocket(getAnimalsWsUrl());
 
       socket.onopen = () => {
         console.log("Connected to server");
