@@ -190,7 +190,6 @@ void sensar_enviar(void *pvParameters){
     mpu6050_init(I2C_NUM_0);
     lm35_init();
     init_mosfet_gpios();
-    lora_init();
     ESP_LOGI("#","luego de lora init");
 
     ESP_LOGI("#","####################################################");

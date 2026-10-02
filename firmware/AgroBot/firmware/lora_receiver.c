@@ -189,7 +189,7 @@ static int lora_initialize(void)
     if (lora_write_register(0x1D, 0x72) < 0) return -1;
     if (lora_write_register(0x1E, 0x74) < 0) return -1;
     if (lora_write_register(0x26, 0x00) < 0) return -1;
-    if (lora_write_register(0x39, 0x12) < 0) return -1;
+    if (lora_write_register(0x39, 0x34) < 0) return -1;
     if (lora_write_register(0x0E, 0x00) < 0) return -1;
     if (lora_write_register(0x0F, 0x00) < 0) return -1;
     if (lora_write_register(0x40, 0x00) < 0) return -1;
