@@ -6,7 +6,7 @@
 #include "esp_log.h"    
 #include "esp_system.h"
 #include "esp_sleep.h"
-#include "esp_timer.h"               // <--- INCLUIDO PARA EVITAR EL ERROR DE COMPILACIÓN
+#include "esp_timer.h"               
 #include "esp_private/esp_clk.h"     
 #include "esp_adc/adc_oneshot.h" 
 #include "driver/gpio.h"
@@ -102,7 +102,6 @@ void switch_mosfet() {
 uint64_t tiempo_medido(void) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    // gettimeofday devuelve segundos en tv_sec. Ya no hace falta dividir por 1000000.
     return (uint64_t)tv.tv_sec;
 }
 
@@ -182,7 +181,6 @@ void internal_temp() {
 }
 
 void sensar_enviar(void *pvParameters){ 
-    ESP_LOGI("#","####################################################");
     ESP_LOGI("func_sensar_enviar","Iniciando buses y perifericos.");
     gps_starting();
     init_i2c();
@@ -190,9 +188,7 @@ void sensar_enviar(void *pvParameters){
     lm35_init();
     init_mosfet_gpios();
     lora_init();
-    ESP_LOGI("#","luego de lora init");
 
-    ESP_LOGI("#","####################################################");
     ESP_LOGI("func_sensar_enviar","Leyendo todos los sensores...");
     read_gps();
     read_mpu6050();
@@ -217,7 +213,7 @@ void sensar_enviar(void *pvParameters){
     gpio_hold_en(MOSFET2);
     gpio_hold_en(MOSFET3);
     gpio_hold_en(MOSFET4);
-    gpio_deep_sleep_hold_en(); // <--- OBLIGATORIO PARA DEEP SLEEP
+    gpio_deep_sleep_hold_en(); 
 
     mpu6050_enable_wom(I2C_NUM_0, MPU6050_THRESHOLD);
 
@@ -240,7 +236,7 @@ void app_main(void)
 {
     ESP_LOGI("MAIN","Comenzando los procesos principales");
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
-    ESP_LOGI("WAKEUPCAUSE","CÓDIGO DE WAKEUP: %d",cause); // https://github.com/espressif/esp-idf/blob/v6.0.1/components/esp_hw_support/include/esp_sleep.h
+    ESP_LOGI("WAKEUPCAUSE","CÓDIGO DE WAKEUP: %d",cause); 
     ESP_LOGI("func_sensar_enviar","Empaquetando y enviando...");
     lora_init();
     payload_t paquete;
@@ -248,6 +244,7 @@ void app_main(void)
     paquete.latitud = (int32_t)(10);
     paquete.longitud = (int32_t)(15);
     paquete.temperatura = (float)(20.0);
+    
     while(1) {
         transmitir_datos(&paquete);
         vTaskDelay(pdMS_TO_TICKS(500));

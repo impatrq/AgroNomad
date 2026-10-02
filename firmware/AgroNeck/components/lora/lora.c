@@ -171,6 +171,8 @@ void lora_init(void){
     lora_write_register(0x1D, 0x72);
     lora_write_register(0x1E, 0x74);
     lora_write_register(0x26, 0x00);
+    lora_write_register(0x39, 0x34);
+
 
     // Potencia de transmisión
     lora_write_register(0x09, 0x8F); // Potencia supuestamente "ideal"
