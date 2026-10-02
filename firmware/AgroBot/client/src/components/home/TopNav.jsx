@@ -42,6 +42,22 @@ export default function TopNav({ menuOpen, onToggleMenu, onNavigate, scrollToSec
           </button>
           <button
             type="button"
+            onClick={() => onNavigate?.('/animalhistory')}
+            className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Historial de ganado
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate?.('/yardsinfo')}
+            className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Información de campos
+          </button>
+
+          <button
+            type="button"
             onClick={() => onNavigate?.('/userconf')}
             className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >

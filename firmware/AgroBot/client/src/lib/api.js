@@ -7,3 +7,8 @@ const apiBaseUrl = configuredBaseUrl ? configuredBaseUrl.replace(/\/$/, '') : ''
 export function apiUrl(path) {
   return `${apiBaseUrl}${path}`
 }
+export function getAnimalsWsUrl() {
+  const url = new URL(apiUrl('/ws/animals'), window.location.href)
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  return url.toString()
+}
