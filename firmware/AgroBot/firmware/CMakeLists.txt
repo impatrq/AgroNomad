@@ -6,12 +6,15 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 add_executable(agro-neck-client main.c)
+add_executable(agrobot-lora-receiver lora_receiver.c)
 
-target_compile_options(agro-neck-client PRIVATE
-    -Wall
-    -Wextra
-    -O2
-)
+foreach(target agro-neck-client agrobot-lora-receiver)
+    target_compile_options(${target} PRIVATE
+        -Wall
+        -Wextra
+        -O2
+    )
+endforeach()
 
 # How to build
 # cmake -S . -B build
