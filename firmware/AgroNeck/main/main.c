@@ -184,12 +184,12 @@ void internal_temp() {
 void sensar_enviar(void *pvParameters){ 
     ESP_LOGI("#","####################################################");
     ESP_LOGI("func_sensar_enviar","Iniciando buses y perifericos.");
+    lora_init();
     gps_starting();
     init_i2c();
     mpu6050_init(I2C_NUM_0);
     lm35_init();
     init_mosfet_gpios();
-    lora_init();
     ESP_LOGI("#","luego de lora init");
 
     ESP_LOGI("#","####################################################");

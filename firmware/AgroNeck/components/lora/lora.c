@@ -33,7 +33,7 @@ static void lora_spi_init() {
     ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 1*1000*1000,
+        .clock_speed_hz = 5*1000*1000,
         .mode = 0,
         .spics_io_num = LORA_CS,
         .queue_size = 7,
@@ -78,6 +78,9 @@ static void lora_write_register(uint8_t address, uint8_t payload){
 
 // Función para enviar una cadena
 static void lora_send_packetb(const uint8_t *data, size_t length) {
+    ESP_LOGI(TAG, "TX payload (%u bytes)", (unsigned)length);
+    ESP_LOG_BUFFER_HEX(TAG, data, length);
+
     // defino largo del payload
     lora_write_register(0x22, length);
 
@@ -142,18 +145,18 @@ void transmitir_datos(payload_t *paquete){
     // *etc, despues llamo la funcion enviando el paquete como argumento
     */
     
-    lora_send_packetb((uint8_t*)paquete,sizeof(payload_t)); // envio el paquete, que con este formato son 13 bytes
+    lora_send_packetb((uint8_t *)paquete, sizeof(*paquete));
 }
 
 void lora_init(void){
-    lora_spi_init();
-
-    // 2. AHORA configuramos el pin de reset y reiniciamos el módulo
+    // Configurar pines CS y RST como salida
     gpio_reset_pin(LORA_RESET);
     gpio_set_direction(LORA_RESET, GPIO_MODE_OUTPUT);
+    gpio_reset_pin(LORA_CS);
     lora_reset();
-    
-    vTaskDelay(pdMS_TO_TICKS(15));
+
+    // inicializacion de SPI_LoRa
+    lora_spi_init();
 
     uint8_t version = lora_read_register(0x42);
     ESP_LOGI(TAG, "LoRa version register: 0x%02X", version);
@@ -163,7 +166,7 @@ void lora_init(void){
     vTaskDelay(pdMS_TO_TICKS(10));
     lora_write_register(0x01, 0x81); // RegOpMode: LoRa + standby
 
-    // Frecuencia 433 MHz (para SX1278) 
+    // Frecuencia 433 MHz (para SX1278)
     lora_write_register(0x06, 0x6C);
     lora_write_register(0x07, 0x40);
     lora_write_register(0x08, 0x00);
@@ -171,6 +174,7 @@ void lora_init(void){
     lora_write_register(0x1D, 0x72);
     lora_write_register(0x1E, 0x74);
     lora_write_register(0x26, 0x00);
+    lora_write_register(0x39, 0x34); // RegModemConfig3: LowDataRateOptimize=1, AgcAutoOn=1
 
     // Potencia de transmisión
     lora_write_register(0x09, 0x8F); // Potencia supuestamente "ideal"
