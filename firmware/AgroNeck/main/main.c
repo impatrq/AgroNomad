@@ -182,7 +182,6 @@ void internal_temp() {
 
 void sensar_enviar(void *pvParameters){ 
     ESP_LOGI("func_sensar_enviar","Iniciando buses y perifericos.");
-    lora_init();
     gps_starting();
     init_i2c();
     mpu6050_init(I2C_NUM_0);
@@ -257,7 +256,7 @@ void app_main(void)
         gpio_deep_sleep_hold_en(); // <--- OBLIGATORIO PARA DEEP SLEEP
 
         while(gpio_get_level(WAKEUP_GPIO) == 1) {
-        vTaskDelay(pdMS_TO_TICKS(10));
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
         
         ESP_LOGI("MAIN_fwu","Preparo interrupción.");
