@@ -38,7 +38,7 @@ RTC_DATA_ATTR uint64_t tiempo_switch = 0;
 RTC_DATA_ATTR bool sistema_inicializado = false;
 
 // Conmutación de baterías
-#define TIEMPO_CAMBIO_BATS 30ULL 
+#define TIEMPO_CAMBIO_BATS 10
 
 // VARIABLES DE DATOS
 double latitude; double longitude; char lat_hemisphere; char lon_hemisphere; float velocidad;
@@ -100,7 +100,10 @@ void switch_mosfet() {
 }
 
 uint64_t tiempo_medido(void) {
-    return (uint64_t)(esp_timer_get_time() / 1000000ULL);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    // gettimeofday devuelve segundos en tv_sec. Ya no hace falta dividir por 1000000.
+    return (uint64_t)tv.tv_sec;
 }
 
 void hora_actual() {
@@ -179,13 +182,17 @@ void internal_temp() {
 }
 
 void sensar_enviar(void *pvParameters){ 
+    ESP_LOGI("#","####################################################");
     ESP_LOGI("func_sensar_enviar","Iniciando buses y perifericos.");
     gps_starting();
     init_i2c();
     mpu6050_init(I2C_NUM_0);
     lm35_init();
     init_mosfet_gpios();
+    lora_init();
+    ESP_LOGI("#","luego de lora init");
 
+    ESP_LOGI("#","####################################################");
     ESP_LOGI("func_sensar_enviar","Leyendo todos los sensores...");
     read_gps();
     read_mpu6050();
@@ -195,6 +202,7 @@ void sensar_enviar(void *pvParameters){
 
     ESP_LOGI("func_sensar_enviar","Empaquetando y enviando...");
     payload_t paquete;
+    paquete.id_collar = 122;
     paquete.latitud = (int32_t)(latitude * 1000000.0);
     paquete.longitud = (int32_t)(longitude * 1000000.0);
     paquete.temperatura = temp_interna;
@@ -203,7 +211,6 @@ void sensar_enviar(void *pvParameters){
 
     // Evalúa y aplica el cambio de batería
     hora_actual();
-
     // Congelar estado de pines para Deep Sleep
     ESP_LOGI("func_sensar_enviar","Congelando MOSFETs...");
     gpio_hold_en(MOSFET1);
@@ -211,6 +218,8 @@ void sensar_enviar(void *pvParameters){
     gpio_hold_en(MOSFET3);
     gpio_hold_en(MOSFET4);
     gpio_deep_sleep_hold_en(); // <--- OBLIGATORIO PARA DEEP SLEEP
+
+    mpu6050_enable_wom(I2C_NUM_0, MPU6050_THRESHOLD);
 
     ESP_LOGI("func_sensar_enviar","Limpiando INT MPU.");
     mpu6050_clear_int(I2C_NUM_0); 
@@ -232,9 +241,21 @@ void app_main(void)
     ESP_LOGI("MAIN","Comenzando los procesos principales");
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
     ESP_LOGI("WAKEUPCAUSE","CÓDIGO DE WAKEUP: %d",cause); // https://github.com/espressif/esp-idf/blob/v6.0.1/components/esp_hw_support/include/esp_sleep.h
+    ESP_LOGI("func_sensar_enviar","Empaquetando y enviando...");
+    lora_init();
+    payload_t paquete;
+    paquete.id_collar = 122;
+    paquete.latitud = (int32_t)(10);
+    paquete.longitud = (int32_t)(15);
+    paquete.temperatura = (float)(20.0);
+    while(1) {
+        transmitir_datos(&paquete);
+        vTaskDelay(pdMS_TO_TICKS(500));
+
+    }
 
     // Despierto por razones que no son Wake-On-Motion (Primer arranque / Reset)
-    if (cause != ESP_SLEEP_WAKEUP_EXT0) { 
+    /*if (cause != ESP_SLEEP_WAKEUP_EXT0) { 
         ESP_LOGI("MAIN_fwu","Primer arranque, inicializando buses.");
         init_i2c(); 
         mpu6050_init(I2C_NUM_0);
@@ -250,6 +271,10 @@ void app_main(void)
         gpio_hold_en(MOSFET3);
         gpio_hold_en(MOSFET4);
         gpio_deep_sleep_hold_en(); // <--- OBLIGATORIO PARA DEEP SLEEP
+
+        while(gpio_get_level(WAKEUP_GPIO) == 1) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+        }
         
         ESP_LOGI("MAIN_fwu","Preparo interrupción.");
         esp_sleep_enable_ext0_wakeup(WAKEUP_GPIO, WAKEUP_LEVEL); 
@@ -260,7 +285,7 @@ void app_main(void)
         esp_deep_sleep_start(); 
         return;
     }
-
+    */
     // Despierto de Deep Sleep por movimiento (EXT0)
-    xTaskCreate(sensar_enviar, "sensar_enviar_task", 4096, NULL, 5, NULL);    
+    //xTaskCreate(sensar_enviar, "sensar_enviar_task", 4096, NULL, 5, NULL);    
 }

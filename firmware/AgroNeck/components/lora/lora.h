@@ -6,7 +6,7 @@
 #define LORA_CLK        18
 #define LORA_MISO       19
 #define LORA_MOSI       23
-#define LORA_DIO0       26
+#define LORA_DIO0       10
 
 // Estructuras
 typedef struct {

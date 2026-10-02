@@ -1,4 +1,6 @@
 {
-    "cmake.sourceDirectory": "C:/Users/usuario/AgroNomad/firmware/AgroNeck",
-    "idf.currentSetup": "C:/Espressif/frameworks/esp-idf-v5.4.1/"
+    "cmake.sourceDirectory": "${workspaceFolder}/firmware/AgroNeck",
+    "idf.currentSetup": "C:/Espressif/frameworks/esp-idf-v5.4.1/",
+    "idf.projectDir": "${workspaceFolder}/firmware/AgroNeck",
+    "idf.port": "COM8"
 }
