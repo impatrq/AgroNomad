@@ -78,51 +78,59 @@ static void lora_write_register(uint8_t address, uint8_t payload){
 
 // Función para enviar una cadena
 static void lora_send_packetb(const uint8_t *data, size_t length) {
-    ESP_LOGI(TAG, "TX payload (%u bytes)", (unsigned)length);
-    ESP_LOG_BUFFER_HEX(TAG, data, length);
+    // 1. Poner el chip en Standby para poder escribir la FIFO sin corrupción
+    lora_write_register(0x01, 0x81); // O 0x89 si usas 433MHz
 
-    // defino largo del payload
+    // 2. Resetear el puntero de transmisión de la FIFO a la dirección base 0x00
+    lora_write_register(0x0E, 0x00); // RegFifoTxBaseAddr
+    lora_write_register(0x0D, 0x00); // RegFifoAddrPtr
+
+    // 3. Definir el tamaño exacto del payload a enviar
     lora_write_register(0x22, length);
 
-    // configuro direcciones del FIFO
-    lora_write_register(0x0E, 0x00);
-    lora_write_register(0x0D, 0x00);
-
-    // burst write
-    uint8_t *spi_buf = heap_caps_malloc(length+1,MALLOC_CAP_DMA);
+    // 4. Escribir los datos en la FIFO (Burst Write)
+    uint8_t *spi_buf = heap_caps_malloc(length + 1, MALLOC_CAP_DMA);
     if (spi_buf == NULL) {
-        ESP_LOGE(TAG,"Error: No se pudo asignar memoria buffer SPI");
+        ESP_LOGE(TAG, "Error: No se pudo asignar memoria buffer SPI");
         return;
     }
 
-    spi_buf[0] = 0x00 | 0x80; 
-    memcpy(&spi_buf[1],data,length); // copio estructura al buffer
+    spi_buf[0] = 0x00 | 0x80; // Dirección FIFO (0x00) + Bit de escritura (0x80)
+    memcpy(&spi_buf[1], data, length);
 
     spi_transaction_t t = {
-        .length = (length+1)*8, // largo en bits
+        .length = (length + 1) * 8,
         .tx_buffer = spi_buf,
         .rx_buffer = NULL
     };
 
-    spi_device_polling_transmit(lora_spi, &t); // transito sin soltar CS
-    free(spi_buf); // libero memoria
+    spi_device_polling_transmit(lora_spi, &t);
+    free(spi_buf);
 
-    lora_write_register(0x12,0xFF); // limpio flags irq antes de transmitir
-    lora_write_register(0x01,0x83); // regop: lora+tx
+    // 5. Limpiar BANDERAS de interrupción viejas antes de transmitir
+    lora_write_register(0x12, 0xFF); // RegIrqFlags
 
+    // 6. INICIAR TRANSMISIÓN (RegOpMode = LoRa + TX)
+    lora_write_register(0x01, 0x83); // O 0x8B si usas 433MHz
+
+    // 7. Esperar a que la radio termine de transmitir por el aire (TxDone)
     uint8_t irq_flags;
     int timeout = 1000;
     while (timeout--) {
         irq_flags = lora_read_register(0x12);
-        if (irq_flags & 0x08) { // detecta envio
-            ESP_LOGI(TAG,"Paquete binario enviado (%d bytes)",length);
+        if (irq_flags & 0x08) { // Bit 3 = TxDone
+            ESP_LOGI(TAG, "Paquete enviado con éxito (%d bytes)", length);
             break;
         }
         vTaskDelay(pdMS_TO_TICKS(1));
     }
-    lora_write_register(0x12,0xFF); // limpio flags irq despues de transmitir
 
-    lora_write_register(0x01, 0x80); // regop: sleep
+    // 8. Limpiar la bandera TxDone para que no afecte la siguiente ráfaga
+    lora_write_register(0x12, 0xFF);
+
+    // 9. REINICIAR PUNTERO DE FIFO Y VOLVER A SLEEP/STANDBY
+    lora_write_register(0x0D, 0x00);
+    lora_write_register(0x01, 0x80); // O 0x88 si usas 433MHz
 }
 
 void transmitir_datos(payload_t *paquete){
@@ -149,14 +157,15 @@ void transmitir_datos(payload_t *paquete){
 }
 
 void lora_init(void){
-    // Configurar pines CS y RST como salida
+    // 2. AHORA configuramos el pin de reset y reiniciamos el módulo
     gpio_reset_pin(LORA_RESET);
     gpio_set_direction(LORA_RESET, GPIO_MODE_OUTPUT);
     gpio_reset_pin(LORA_CS);
     lora_reset();
 
-    // inicializacion de SPI_LoRa
     lora_spi_init();
+
+    vTaskDelay(pdMS_TO_TICKS(15));
 
     uint8_t version = lora_read_register(0x42);
     ESP_LOGI(TAG, "LoRa version register: 0x%02X", version);
@@ -174,7 +183,11 @@ void lora_init(void){
     lora_write_register(0x1D, 0x72);
     lora_write_register(0x1E, 0x74);
     lora_write_register(0x26, 0x00);
-    lora_write_register(0x39, 0x34); // RegModemConfig3: LowDataRateOptimize=1, AgcAutoOn=1
+    lora_write_register(0x39, 0x34);
+
+    lora_write_register(0x1D, 0x72);
+    lora_write_register(0x1E, 0x74); 
+    lora_write_register(0x26, 0x00);
 
     // Potencia de transmisión
     lora_write_register(0x09, 0x8F); // Potencia supuestamente "ideal"
