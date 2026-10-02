@@ -199,9 +199,9 @@ void sensar_enviar(void *pvParameters){
     ESP_LOGI("func_sensar_enviar","Empaquetando y enviando...");
     payload_t paquete;
     paquete.id_collar = 122;
+    paquete.temperatura = temp_interna;
     paquete.latitud = (int32_t)(latitude * 1000000.0);
     paquete.longitud = (int32_t)(longitude * 1000000.0);
-    paquete.temperatura = temp_interna;
 
     transmitir_datos(&paquete);
 
@@ -236,23 +236,9 @@ void app_main(void)
 {
     ESP_LOGI("MAIN","Comenzando los procesos principales");
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
-    ESP_LOGI("WAKEUPCAUSE","CÓDIGO DE WAKEUP: %d",cause); 
-    ESP_LOGI("func_sensar_enviar","Empaquetando y enviando...");
-    lora_init();
-    payload_t paquete;
-    paquete.id_collar = 122;
-    paquete.temperatura = temp_interna;
-    paquete.latitud = (int32_t)(latitude * 1000000.0);
-    paquete.longitud = (int32_t)(longitude * 1000000.0);
-
-    while(1) {
-        transmitir_datos(&paquete);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-    }
 
     // Despierto por razones que no son Wake-On-Motion (Primer arranque / Reset)
-    /*if (cause != ESP_SLEEP_WAKEUP_EXT0) { 
+    if (cause != ESP_SLEEP_WAKEUP_EXT0) { 
         ESP_LOGI("MAIN_fwu","Primer arranque, inicializando buses.");
         init_i2c(); 
         mpu6050_init(I2C_NUM_0);
@@ -282,7 +268,7 @@ void app_main(void)
         esp_deep_sleep_start(); 
         return;
     }
-    */
+  
     // Despierto de Deep Sleep por movimiento (EXT0)
-    //xTaskCreate(sensar_enviar, "sensar_enviar_task", 4096, NULL, 5, NULL);    
+    xTaskCreate(sensar_enviar, "sensar_enviar_task", 4096, NULL, 5, NULL);    
 }
