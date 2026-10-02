@@ -9,12 +9,12 @@
 #define LORA_DIO0       10
 
 // Estructuras
-typedef struct {
+typedef struct __attribute__((packed)) {
     uint16_t id_collar;
-    float temperatura;
-    int32_t latitud;
-    int32_t longitud;
-} __attribute__((packed)) payload_t;
+    float temperatura;     
+    int32_t latitud;       
+    int32_t longitud;     
+} payload_t;               
 
 // Funciones
 void lora_init(void);

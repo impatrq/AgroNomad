@@ -241,13 +241,13 @@ void app_main(void)
     lora_init();
     payload_t paquete;
     paquete.id_collar = 122;
-    paquete.latitud = (int32_t)(10);
-    paquete.longitud = (int32_t)(15);
-    paquete.temperatura = (float)(20.0);
-    
+    paquete.temperatura = temp_interna;
+    paquete.latitud = (int32_t)(latitude * 1000000.0);
+    paquete.longitud = (int32_t)(longitude * 1000000.0);
+
     while(1) {
         transmitir_datos(&paquete);
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(1000));
 
     }
 
