@@ -33,7 +33,7 @@ static void lora_spi_init() {
     ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 1*1000*1000,
+        .clock_speed_hz = 5*1000*1000,
         .mode = 0,
         .spics_io_num = LORA_CS,
         .queue_size = 7,
@@ -153,7 +153,7 @@ void transmitir_datos(payload_t *paquete){
     // *etc, despues llamo la funcion enviando el paquete como argumento
     */
     
-    lora_send_packetb((uint8_t*)paquete,sizeof(payload_t)); // envio el paquete, que con este formato son 13 bytes
+    lora_send_packetb((uint8_t *)paquete, sizeof(*paquete));
 }
 
 void lora_init(void){
@@ -175,7 +175,7 @@ void lora_init(void){
     vTaskDelay(pdMS_TO_TICKS(10));
     lora_write_register(0x01, 0x81); // RegOpMode: LoRa + standby
 
-    // Frecuencia 433 MHz (para SX1278) 
+    // Frecuencia 433 MHz (para SX1278)
     lora_write_register(0x06, 0x6C);
     lora_write_register(0x07, 0x40);
     lora_write_register(0x08, 0x00);
