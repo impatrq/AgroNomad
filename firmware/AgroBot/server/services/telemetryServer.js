@@ -14,6 +14,7 @@ export function createTelemetryServer({ onTelemetryProcessed } = {}) {
 
       for (const payload of result.payloads) {
         try {
+          console.log('Received telemetry payload:', payload)
           await processTelemetryPayload(payload)//upload to db. Table --> gps_positions.
           console.log('Telemetry payload processed successfully')
           await onTelemetryProcessed?.()

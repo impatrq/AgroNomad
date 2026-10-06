@@ -13,7 +13,7 @@ const TCP_PORT = Number(process.env.TCP_PORT || 4001)
 
 async function startServer() {
   await initializeDatabase()
-  await seedSampleData()
+  //await seedSampleData()
 
   const app = createApp()
   //Web Socket to tx Animal data constinously

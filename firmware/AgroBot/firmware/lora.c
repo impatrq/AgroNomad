@@ -1,4 +1,4 @@
-#define _DEFAULT_SOURCE
+#include "lora.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -14,22 +14,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
-#define SPI_DEVICE "/dev/spidev0.0"
-#define GPIO_CHIP_DEVICE "/dev/gpiochip0"
-#define GPIO_LORA_RESET 25
-#define GPIO_LORA_DIO0 24
-#define SPI_SPEED_HZ 5000000U
-#define LORA_PACKET_SIZE 14
-#define BACKEND_IP "127.0.0.1"
-#define BACKEND_PORT 4001
-
-typedef struct __attribute__((packed)) {
-    uint16_t id_collar;
-    float temperatura;
-    int32_t latitud;
-    int32_t longitud;
-} agro_neck_payload_t;
 
 _Static_assert(sizeof(agro_neck_payload_t) == LORA_PACKET_SIZE,
                "AgroNeck LoRa payload layout changed");
@@ -141,7 +125,7 @@ static int lora_read_fifo(uint8_t *data, size_t length)
     return 0;
 }
 
-static int lora_initialize(void)
+int lora_initialize(void)
 {
     spi_fd = open(SPI_DEVICE, O_RDWR | O_CLOEXEC);
     if (spi_fd < 0) {
@@ -201,7 +185,7 @@ static int lora_initialize(void)
     return 0;
 }
 
-static int lora_receive_packet(uint8_t *data, size_t capacity, size_t *length)
+int lora_receive_packet(uint8_t *data, size_t capacity, size_t *length)
 {
     struct pollfd event_fd = { .fd = dio0_event_fd, .events = POLLIN };
 
@@ -297,43 +281,9 @@ static int forward_to_backend(const agro_neck_payload_t *payload)
     return result;
 }
 
-static void close_receiver(void)
+void close_receiver(void)
 {
     if (dio0_event_fd >= 0) close(dio0_event_fd);
     if (reset_line_fd >= 0) close(reset_line_fd);
     if (spi_fd >= 0) close(spi_fd);
-}
-
-int main(void)
-{
-    uint8_t packet[LORA_PACKET_SIZE];
-    size_t packet_length = 0;
-
-    if (lora_initialize() < 0) {
-        close_receiver();
-        return EXIT_FAILURE;
-    }
-
-    for (;;) {
-        if (lora_receive_packet(packet, sizeof(packet), &packet_length) < 0) {
-            perror("receive LoRa packet");
-            close_receiver();
-            return EXIT_FAILURE;
-        }
-        if (packet_length != sizeof(agro_neck_payload_t)) {
-            fprintf(stderr, "Expected %zu-byte payload, received %zu bytes\n",
-                    sizeof(agro_neck_payload_t), packet_length);
-            continue;
-        }
-
-        agro_neck_payload_t payload;
-        memcpy(&payload, packet, sizeof(payload));
-        printf("Received collar=%u temperature=%.2f C latitude=%.6f longitude=%.6f\n",
-               (unsigned)payload.id_collar,
-               payload.temperatura,
-               payload.latitud / 1000000.0,
-               payload.longitud / 1000000.0);
-
-        forward_to_backend(&payload);
-    }
 }

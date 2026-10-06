@@ -1,3 +1,8 @@
+export function hasValidAnimalPosition(animal) {
+  return Number.isFinite(animal?.lat) && Number.isFinite(animal?.lng) &&
+    animal.lat !== 0 && animal.lng !== 0
+}
+
 export function normalizeBoundaryGroups(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return []

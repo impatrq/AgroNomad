@@ -20,7 +20,12 @@
 #define GPIO_LORA_RESET 25
 #define GPIO_LORA_DIO0 24
 #define SPI_SPEED_HZ 5000000U
-#define LORA_PACKET_SIZE 14
+
+/* SX1278 FIFO is 256 bytes; the max on-air payload is 255 bytes. */
+#define LORA_MAX_PACKET_SIZE 255
+/* Size of the AgroNeck struct (14 bytes). */
+#define AGRO_NECK_PACKET_SIZE 14
+
 #define BACKEND_IP "127.0.0.1"
 #define BACKEND_PORT 4001
 
@@ -31,7 +36,7 @@ typedef struct __attribute__((packed)) {
     int32_t longitud;
 } agro_neck_payload_t;
 
-_Static_assert(sizeof(agro_neck_payload_t) == LORA_PACKET_SIZE,
+_Static_assert(sizeof(agro_neck_payload_t) == AGRO_NECK_PACKET_SIZE,
                "AgroNeck LoRa payload layout changed");
 
 static int spi_fd = -1;
@@ -124,15 +129,23 @@ static int lora_write_register(uint8_t reg, uint8_t value)
     return spi_transfer(tx_data, NULL, sizeof(tx_data));
 }
 
+/*
+ * Read up to LORA_MAX_PACKET_SIZE bytes from the SX1278 FIFO.
+ * The FIFO read opcode is 0x00 (RegFifo), so the first byte sent is 0x00
+ * followed by (length) dummy bytes to clock the data out.
+ */
 static int lora_read_fifo(uint8_t *data, size_t length)
 {
-    uint8_t tx_data[LORA_PACKET_SIZE + 1] = { 0 };
-    uint8_t rx_data[LORA_PACKET_SIZE + 1] = { 0 };
+    uint8_t tx_data[LORA_MAX_PACKET_SIZE + 1];
+    uint8_t rx_data[LORA_MAX_PACKET_SIZE + 1];
 
-    if (length == 0 || length > LORA_PACKET_SIZE) {
+    if (length == 0 || length > LORA_MAX_PACKET_SIZE) {
         errno = EMSGSIZE;
         return -1;
     }
+
+    memset(tx_data, 0, length + 1);
+    memset(rx_data, 0, length + 1);
 
     if (spi_transfer(tx_data, rx_data, length + 1) < 0) {
         return -1;
@@ -187,6 +200,7 @@ static int lora_initialize(void)
     if (lora_write_register(0x06, 0x6C) < 0) return -1;
     if (lora_write_register(0x07, 0x40) < 0) return -1;
     if (lora_write_register(0x08, 0x00) < 0) return -1;
+
     if (lora_write_register(0x1D, 0x72) < 0) return -1;
     if (lora_write_register(0x1E, 0x70) < 0) return -1;
     if (lora_write_register(0x26, 0x04) < 0) return -1;
@@ -197,7 +211,7 @@ static int lora_initialize(void)
     if (lora_write_register(0x12, 0xFF) < 0) return -1;
     if (lora_write_register(0x01, 0x85) < 0) return -1;
 
-    printf("Listening for AgroNeck LoRa packets at 433 MHz\n");
+    printf("Listening for any LoRa packets at 433 MHz\n");
     return 0;
 }
 
@@ -220,9 +234,9 @@ static int lora_receive_packet(uint8_t *data, size_t capacity, size_t *length)
 
         uint8_t irq_flags = 0;
         if (lora_read_register(0x12, &irq_flags) < 0) return -1;
-        if ((irq_flags & 0x40) == 0) continue;
+        if ((irq_flags & 0x40) == 0) continue;   /* only handle PayloadReady (RxDone) */
 
-        if (irq_flags & 0x20) {
+        if (irq_flags & 0x20) {                  /* CRC error */
             if (lora_write_register(0x12, irq_flags) < 0) return -1;
             fprintf(stderr, "Discarded LoRa packet with CRC error\n");
             continue;
@@ -234,9 +248,12 @@ static int lora_receive_packet(uint8_t *data, size_t capacity, size_t *length)
             lora_read_register(0x10, &fifo_address) < 0) {
             return -1;
         }
-        if (packet_length > capacity || packet_length > LORA_PACKET_SIZE) {
+
+        /* Accept any length the hardware reports, up to our buffer size. */
+        if (packet_length == 0 || packet_length > capacity) {
             if (lora_write_register(0x12, irq_flags) < 0) return -1;
-            fprintf(stderr, "Discarded LoRa packet with unexpected length: %u\n", packet_length);
+            fprintf(stderr, "Discarded LoRa packet with invalid length: %u\n",
+                    packet_length);
             continue;
         }
 
@@ -297,6 +314,21 @@ static int forward_to_backend(const agro_neck_payload_t *payload)
     return result;
 }
 
+/* Pretty-print an arbitrary LoRa packet: hex + printable ASCII. */
+static void dump_raw_packet(const uint8_t *data, size_t length)
+{
+    printf("Raw LoRa packet (%zu bytes):\n  HEX:", length);
+    for (size_t i = 0; i < length; ++i) {
+        printf(" %02X", data[i]);
+    }
+    printf("\n  ASCII: \"");
+    for (size_t i = 0; i < length; ++i) {
+        uint8_t c = data[i];
+        putchar((c >= 0x20 && c < 0x7F) ? (int)c : '.');
+    }
+    printf("\"\n");
+}
+
 static void close_receiver(void)
 {
     if (dio0_event_fd >= 0) close(dio0_event_fd);
@@ -306,7 +338,7 @@ static void close_receiver(void)
 
 int main(void)
 {
-    uint8_t packet[LORA_PACKET_SIZE];
+    uint8_t packet[LORA_MAX_PACKET_SIZE];
     size_t packet_length = 0;
 
     if (lora_initialize() < 0) {
@@ -320,20 +352,21 @@ int main(void)
             close_receiver();
             return EXIT_FAILURE;
         }
-        if (packet_length != sizeof(agro_neck_payload_t)) {
-            fprintf(stderr, "Expected %zu-byte payload, received %zu bytes\n",
-                    sizeof(agro_neck_payload_t), packet_length);
-            continue;
+
+        if (packet_length == sizeof(agro_neck_payload_t)) {
+            /* Known AgroNeck format: parse and forward to backend. */
+            agro_neck_payload_t payload;
+            memcpy(&payload, packet, sizeof(payload));
+            printf("Received collar=%u temperature=%.2f C latitude=%.6f longitude=%.6f\n",
+                   (unsigned)payload.id_collar,
+                   payload.temperatura,
+                   payload.latitud / 1000000.0,
+                   payload.longitud / 1000000.0);
+
+            forward_to_backend(&payload);
+        } else {
+            /* Unknown format: just display it. */
+            dump_raw_packet(packet, packet_length);
         }
-
-        agro_neck_payload_t payload;
-        memcpy(&payload, packet, sizeof(payload));
-        printf("Received collar=%u temperature=%.2f C latitude=%.6f longitude=%.6f\n",
-               (unsigned)payload.id_collar,
-               payload.temperatura,
-               payload.latitud / 1000000.0,
-               payload.longitud / 1000000.0);
-
-        forward_to_backend(&payload);
     }
 }

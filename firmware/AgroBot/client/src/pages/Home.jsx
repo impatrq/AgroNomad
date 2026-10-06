@@ -5,6 +5,7 @@ import MapSection from '../components/home/MapSection'
 import OverviewPanel from '../components/home/OverviewPanel'
 import AnimalDetailsPanel from '../components/home/AnimalDetailsPanel'
 import useAnimalDashboard from '../hooks/useAnimalDashboard'
+import { hasValidAnimalPosition } from '../lib/utils'
 
 export default function Home({ onNavigate }) {
   const {
@@ -20,17 +21,20 @@ export default function Home({ onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [renameModalOpen, setRenameModalOpen] = useState(false)
 
+  const animalsWithoutPosition = animals.filter((animal) => !hasValidAnimalPosition(animal))
+
   const scrollToSection = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     setMenuOpen(false)
   }
 
   const mapPosition = useMemo(() => {
-    if (selectedAnimal?.lat && selectedAnimal?.lng) {
+    if (selectedAnimal && hasValidAnimalPosition(selectedAnimal)) {
       return [selectedAnimal.lat, selectedAnimal.lng]
     }
-    if (animals.length > 0) {
-      return [animals[0].lat, animals[0].lng]
+    const firstWithPosition = animals.find(hasValidAnimalPosition)
+    if (firstWithPosition) {
+      return [firstWithPosition.lat, firstWithPosition.lng]
     }
     return [-34.71, -58.24]
   }, [selectedAnimal, animals])
@@ -52,6 +56,7 @@ export default function Home({ onNavigate }) {
             onSelectAnimal={setSelectedAnimal}
             yardBoundaries={yardBoundaries}
             mapPosition={mapPosition}
+            animalsWithoutPosition={animalsWithoutPosition}
             loading={loading}
             error={error}
           />

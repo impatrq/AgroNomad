@@ -6,7 +6,6 @@ export function createAnimalsWebSocketServer(httpServer, listAnimals){
   const wss = new WebSocketServer({ server: httpServer, path: ANIMALS_SOCKET_PATH})
 
   async function broadcastAnimals(animalsData) {
-
     const message = JSON.stringify(animalsData);
 
     wss.clients.forEach((client) => {
@@ -24,13 +23,37 @@ export function createAnimalsWebSocketServer(httpServer, listAnimals){
     });
   });
   
-  wss.on('close', () => clearInterval(broadcastInterval))
+  let broadcastInterval;
+  wss.on('close', () => {
+    if (broadcastInterval) clearInterval(broadcastInterval)
+  })
 
-  const broadcastInterval = setInterval(async () => {
-    const data = await listAnimals();
-    broadcastAnimals(data);
-    console.log("Sending data from webSocket to client."+data);
+  broadcastInterval = setInterval(async () => {
+    try {
+      const data = await listAnimals();
+      await broadcastAnimals(data);
+      console.log("Sending data from webSocket to client");
+    } catch (error) {
+      console.error("Error broadcasting animals data:", error.message);
+    }
   }, 1000);
+
+  return {
+    async broadcastAnimals() {
+      try {
+        const animals = await listAnimals()
+        await broadcastAnimals(animals)
+      } catch (error) {
+        console.error('Could not broadcast animal update:', error)
+      }
+    },
+
+    close(callback) {
+      if (broadcastInterval) clearInterval(broadcastInterval)
+      for (const socket of wss.clients) socket.terminate()
+      wss.close(callback)
+    },
+  }
 }
 
 /** 
