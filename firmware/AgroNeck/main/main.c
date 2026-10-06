@@ -70,25 +70,25 @@ void init_mosfet_gpios() {
 void aplica_estado_mosfet() {
     ESP_LOGI("MOSFETS","Aplicando estado %d...", estado_mosfet);
     if (estado_mosfet) { // Estado inicial: 2+3
-        gpio_set_level(MOSFET1, 0);
-        gpio_set_level(MOSFET4, 0);
+        //gpio_set_level(MOSFET1, 0);
+        //gpio_set_level(MOSFET4, 0);
+        //gpio_set_level(MOSFET2, 1);
+        //gpio_set_level(MOSFET3, 1);
         gpio_set_level(MOSFET2, 1);
         gpio_set_level(MOSFET3, 1);
-        //  gpio_set_level(MOSFET2, 1);
-        //  gpio_set_level(MOSFET3, 1);
-        //  vTaskDelay(pdMS_TO_TICKS(100));
-        //  gpio_set_level(MOSFET1, 0);
-        //  gpio_set_level(MOSFET4, 0);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        gpio_set_level(MOSFET1, 0);
+        gpio_set_level(MOSFET4, 0);
     } else { // Estado secundario: 1+4
-        gpio_set_level(MOSFET2, 0);
-        gpio_set_level(MOSFET3, 0);
+        //gpio_set_level(MOSFET2, 0);
+        //gpio_set_level(MOSFET3, 0);
+        //gpio_set_level(MOSFET1, 1);
+        //gpio_set_level(MOSFET4, 1);
         gpio_set_level(MOSFET1, 1);
         gpio_set_level(MOSFET4, 1);
-        //  gpio_set_level(MOSFET1, 1);
-        //  gpio_set_level(MOSFET4, 1);
-        //  vTaskDelay(pdMS_TO_TICKS(100));
-        //  gpio_set_level(MOSFET2, 0);
-        //  gpio_set_level(MOSFET3, 0);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        gpio_set_level(MOSFET2, 0);
+        gpio_set_level(MOSFET3, 0);
     }
 }
 
@@ -176,7 +176,7 @@ void read_mlx90614() {
 /* FUNCIONES DE CALCULO Y PROCESAMIENTO DE DATOS */
 void internal_temp() {
     ESP_LOGI("Temp.Calc","Calculando temperatura interna...");
-    temp_interna = (lm_amb_temp+8) + (mlx_data.mlx_object_temp - (lm_amb_temp+8)) * H_COEFICIENTE;
+    temp_interna = (mlx_data.mlx_object_temp) + (mlx_data.mlx_object_temp - (lm_amb_temp)) * H_COEFICIENTE;
     ESP_LOGI("Temp.Calc","Temperatura interna estimada: %.2f °C", temp_interna); 
 }
 
@@ -200,8 +200,8 @@ void sensar_enviar(void *pvParameters){
     payload_t paquete;
     paquete.id_collar = 122;
     paquete.temperatura = temp_interna;
-    paquete.latitud = (int32_t)(latitude * 1000000.0);
-    paquete.longitud = (int32_t)(longitude * 1000000.0);
+    paquete.latitud = (int32_t)(-latitude * 1000000.0);
+    paquete.longitud = (int32_t)(-longitude * 1000000.0);
 
     transmitir_datos(&paquete);
 
@@ -271,4 +271,44 @@ void app_main(void)
   
     // Despierto de Deep Sleep por movimiento (EXT0)
     xTaskCreate(sensar_enviar, "sensar_enviar_task", 4096, NULL, 5, NULL);    
+
+    
+    /*
+
+    //Función utilizada para probar el sistema sin Deep-Sleep
+    ESP_LOGI("Inicializacion","Iniciando buses y perifericos.");
+    gps_starting();
+    init_i2c();
+    mpu6050_init(I2C_NUM_0);
+    lm35_init();
+    init_mosfet_gpios();
+    lora_init();
+
+    while(1) {
+
+        ESP_LOGI("Lectura","Leyendo todos los sensores...");
+        read_gps();
+        read_mpu6050();
+        read_mlx90614();
+        read_lm35();
+        internal_temp();
+
+        ESP_LOGI("LoRa","Empaquetando y enviando...");
+        payload_t paquete;
+        paquete.id_collar = 122;
+        paquete.temperatura = temp_interna;
+        paquete.latitud = (int32_t)(latitude * 1000000.0);
+        paquete.longitud = (int32_t)(longitude * 1000000.0);
+
+        transmitir_datos(&paquete);
+
+
+        // Evalúa y aplica el cambio de batería
+        ESP_LOGI("Energía","Analizando estado de switcheo.");
+        hora_actual();
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    */
+
 }

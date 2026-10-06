@@ -1,19 +1,37 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import { hasValidAnimalPosition } from '../../lib/utils'
 
-function FlyToSelected({ position }) {
+function FitAnimalPositions({ animals }) {
   const map = useMap()
+  const previousPositionsKey = useRef('')
 
   useEffect(() => {
-    if (position && position[0] !== 0) {
-      map.flyTo(position, map.getZoom(), { duration: 0.5 })
+    const positionedAnimals = animals.filter(hasValidAnimalPosition)
+    const positionsKey = positionedAnimals
+      .map((animal) => `${animal.id}:${animal.lat}:${animal.lng}`)
+      .join('|')
+
+    if (positionsKey === previousPositionsKey.current) return
+    previousPositionsKey.current = positionsKey
+
+    const positions = positionedAnimals.map((animal) => [animal.lat, animal.lng])
+    if (positions.length === 1) {
+      map.setView(positions[0], 15)
+    } else if (positions.length > 1) {
+      map.fitBounds(positions, { padding: [32, 32], maxZoom: 15 })
     }
-  }, [map, position])
+  }, [animals, map])
 
   return null
 }
 
 export default function AnimalMap({ animals, selectedAnimal, onSelectAnimal, yardBoundaries, mapPosition }) {
+  const positionedAnimals = useMemo(
+    () => animals.filter(hasValidAnimalPosition),
+    [animals]
+  )
+
   return (
     <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 relative z-0">
       <MapContainer
@@ -27,7 +45,7 @@ export default function AnimalMap({ animals, selectedAnimal, onSelectAnimal, yar
           attribution='&copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community'
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
         />
-        <FlyToSelected position={mapPosition} />
+        <FitAnimalPositions animals={positionedAnimals} />
 
         {yardBoundaries.map((boundary) => (
           <Polyline
@@ -39,7 +57,7 @@ export default function AnimalMap({ animals, selectedAnimal, onSelectAnimal, yar
           </Polyline>
         ))}
 
-        {animals.map((animal) => {
+        {positionedAnimals.map((animal) => {
           const isSelected = animal.id === selectedAnimal?.id
 
           return (

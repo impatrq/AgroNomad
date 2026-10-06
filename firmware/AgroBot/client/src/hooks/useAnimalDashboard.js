@@ -1,7 +1,7 @@
 // src/hooks/useAnimalDashboard.js
 import { useEffect, useRef, useState } from 'react'
 import { apiUrl, getAnimalsWsUrl} from '../lib/api'
-import { normalizeBoundaryGroups } from '../lib/utils'
+import { hasValidAnimalPosition, normalizeBoundaryGroups } from '../lib/utils'
 
 // Derive ws:// or wss:// from your apiUrl so it works in dev & prod 
 // For example in dev ==> ws://localhost:3000/ws/animals
@@ -14,6 +14,7 @@ export default function useAnimalDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const selectedAnimalRef = useRef(null)
+  const missingPositionIdsRef = useRef(new Set())
 
   useEffect(() => {
     selectedAnimalRef.current = selectedAnimal
@@ -69,13 +70,26 @@ export default function useAnimalDashboard() {
         temp: String(item.temp ?? ''),
       }))
 
+      const missingPositionAnimals = normalized.filter((animal) => !hasValidAnimalPosition(animal))
+      const newlyMissingPositionAnimals = missingPositionAnimals.filter(
+        (animal) => !missingPositionIdsRef.current.has(animal.id)
+      )
+      if (newlyMissingPositionAnimals.length > 0) {
+        console.warn(
+          '[Telemetry] Data received without position data for:',
+          newlyMissingPositionAnimals.map((animal) => animal.id)
+        )
+      }
+      missingPositionIdsRef.current = new Set(missingPositionAnimals.map((animal) => animal.id))
+
       const previouslySelectedId = selectedAnimalRef.current?.id
 
       setAnimals(normalized)
 
       if (normalized.length > 0) {
         const stillSelected = normalized.find((a) => a.id === previouslySelectedId)
-        setSelectedAnimal(stillSelected || normalized[0])
+        const firstWithPosition = normalized.find(hasValidAnimalPosition)
+        setSelectedAnimal(stillSelected || firstWithPosition || normalized[0])
       } else {
         setSelectedAnimal(null)
       }
