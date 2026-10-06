@@ -6,6 +6,7 @@ export default function MapSection({
   onSelectAnimal,
   yardBoundaries,
   mapPosition,
+  animalsWithoutPosition,
   loading,
   error,
 }) {
@@ -43,6 +44,13 @@ export default function MapSection({
           )}
         </div>
       </div>
+
+      {animalsWithoutPosition.length > 0 && (
+        <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Datos recibidos sin posición para {animalsWithoutPosition.map((animal) => animal.id).join(', ')}.
+          Se mostrarán en el mapa cuando latitud y longitud sean distintas de cero.
+        </p>
+      )}
 
       <AnimalMap
         animals={animals}
