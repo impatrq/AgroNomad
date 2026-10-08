@@ -43,7 +43,7 @@ RTC_DATA_ATTR bool sistema_inicializado = false;
 // VARIABLES DE DATOS
 double latitude; double longitude; char lat_hemisphere; char lon_hemisphere; float velocidad;
 #define Vout_LM35       34 
-#define H_COEFICIENTE   0.18f 
+#define H_COEFICIENTE   0.15f 
 float lm_amb_temp;  
 mlx90614_data_t mlx_data; 
 float temp_interna; 
@@ -234,6 +234,7 @@ void sensar_enviar(void *pvParameters){
 // MAIN
 void app_main(void)
 {
+    /*
     ESP_LOGI("MAIN","Comenzando los procesos principales");
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
 
@@ -272,8 +273,8 @@ void app_main(void)
     // Despierto de Deep Sleep por movimiento (EXT0)
     xTaskCreate(sensar_enviar, "sensar_enviar_task", 4096, NULL, 5, NULL);    
 
+    */
     
-    /*
 
     //Función utilizada para probar el sistema sin Deep-Sleep
     ESP_LOGI("Inicializacion","Iniciando buses y perifericos.");
@@ -306,7 +307,7 @@ void app_main(void)
         // Evalúa y aplica el cambio de batería
         ESP_LOGI("Energía","Analizando estado de switcheo.");
         hora_actual();
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 
     */
