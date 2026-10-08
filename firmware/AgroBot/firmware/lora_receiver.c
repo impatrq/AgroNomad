@@ -286,8 +286,8 @@ static int forward_to_backend(const agro_neck_payload_t *payload)
     snprintf(json, sizeof(json),
              "{\"ID\":\"COLLAR-%u\",\"LAT\":%.6f,\"LONG\":%.6f,\"TEMP\":\"%.2f\"}\n",
              (unsigned)payload->id_collar,
-             payload->latitud / 1000000.0,
-             payload->longitud / 1000000.0,
+             payload->latitud / -1000000.0,
+             payload->longitud / -1000000.0,
              payload->temperatura);
 
     int result = send_all(sock, json);
