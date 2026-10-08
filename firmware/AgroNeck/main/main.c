@@ -38,12 +38,12 @@ RTC_DATA_ATTR uint64_t tiempo_switch = 0;
 RTC_DATA_ATTR bool sistema_inicializado = false;
 
 // Conmutación de baterías
-#define TIEMPO_CAMBIO_BATS 10
+#define TIEMPO_CAMBIO_BATS 300
 
 // VARIABLES DE DATOS
 double latitude; double longitude; char lat_hemisphere; char lon_hemisphere; float velocidad;
 #define Vout_LM35       34 
-#define H_COEFICIENTE   0.15f 
+#define H_COEFICIENTE   0.10f 
 float lm_amb_temp;  
 mlx90614_data_t mlx_data; 
 float temp_interna; 
@@ -176,7 +176,7 @@ void read_mlx90614() {
 /* FUNCIONES DE CALCULO Y PROCESAMIENTO DE DATOS */
 void internal_temp() {
     ESP_LOGI("Temp.Calc","Calculando temperatura interna...");
-    temp_interna = (mlx_data.mlx_object_temp) + (mlx_data.mlx_object_temp - (lm_amb_temp)) * H_COEFICIENTE;
+    temp_interna = (mlx_data.mlx_object_temp-15) + (mlx_data.mlx_object_temp-15 - (lm_amb_temp)) * H_COEFICIENTE;
     ESP_LOGI("Temp.Calc","Temperatura interna estimada: %.2f °C", temp_interna); 
 }
 
