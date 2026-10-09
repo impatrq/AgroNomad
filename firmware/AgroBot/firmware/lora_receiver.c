@@ -336,8 +336,8 @@ int main(void)
         printf("Received collar=%u temperature=%.2f C latitude=%.6f longitude=%.6f\n",
                (unsigned)payload.id_collar,
                payload.temperatura,
-               payload.latitud / 1000000.0,
-               payload.longitud / 1000000.0);
+               payload.latitud / -1000000.0,
+               payload.longitud / -1000000.0);
 
         forward_to_backend(&payload);
     }
