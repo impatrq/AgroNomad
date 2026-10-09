@@ -10,8 +10,9 @@ find_package(Threads REQUIRED)
 add_executable(agro-neck-client main.c lora.c neo6m.c)
 target_link_libraries(agro-neck-client PRIVATE Threads::Threads m)
 add_executable(agrobot-lora-receiver lora_receiver.c)
+add_executable(agrobot-lora-simulator lora_simulator.c)
 
-foreach(target agro-neck-client agrobot-lora-receiver)
+foreach(target agro-neck-client agrobot-lora-receiver agrobot-lora-simulator)
     target_compile_options(${target} PRIVATE
         -Wall
         -Wextra
