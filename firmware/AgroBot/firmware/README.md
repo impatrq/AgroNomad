@@ -80,6 +80,26 @@ sudo ./build/agrobot-lora-receiver
 
 El backend debe estar levantado en la Raspberry antes del receptor. `sudo` permite acceder a `/dev/spidev0.0` y `/dev/gpiochip0`; también se pueden configurar los grupos/permisos del usuario para evitarlo. El AgroNeck y el AgroBot deben usar la misma frecuencia y configuración LoRa.
 
+## Simulador de recepción LoRa
+
+`lora_simulator.c` simula la recepción continua de un collar sin necesitar la
+Raspberry Pi ni el módulo LoRa. Antes de compilar, editá al comienzo del archivo
+`COLLAR_ID`, `TEMPERATURE_C`, `LATITUDE`, `LONGITUDE` y
+`SEND_INTERVAL_SECONDS` para establecer los valores y el intervalo de envío.
+
+El programa imprime cada lectura simulada y, si el backend está disponible,
+reenvía el mismo JSON al puerto TCP `127.0.0.1:4001`. Si el backend no está
+disponible, informa el error y continúa simulando; vuelve a intentar en la
+siguiente lectura. Se detiene con `Ctrl+C`.
+
+Compilalo y ejecutalo desde esta carpeta:
+
+```bash
+cmake -S . -B build
+cmake --build build --target agrobot-lora-simulator
+./build/agrobot-lora-simulator
+```
+
 ## Compilación y ejecución
 
 Para compilar el simulador TCP:

@@ -72,7 +72,7 @@ static int request_gpio_lines(void)
         reset_line_fd = -1;
         close(chip_fd);
         return -1;
-    }
+    }       
     dio0_event_fd = dio0_request.fd;
 
     close(chip_fd);
@@ -286,8 +286,8 @@ static int forward_to_backend(const agro_neck_payload_t *payload)
     snprintf(json, sizeof(json),
              "{\"ID\":\"COLLAR-%u\",\"LAT\":%.6f,\"LONG\":%.6f,\"TEMP\":\"%.2f\"}\n",
              (unsigned)payload->id_collar,
-             payload->latitud / 1000000.0,
-             payload->longitud / 1000000.0,
+             payload->latitud / -1000000.0,
+             payload->longitud / -1000000.0,
              payload->temperatura);
 
     int result = send_all(sock, json);
@@ -336,8 +336,8 @@ int main(void)
         printf("Received collar=%u temperature=%.2f C latitude=%.6f longitude=%.6f\n",
                (unsigned)payload.id_collar,
                payload.temperatura,
-               payload.latitud / 1000000.0,
-               payload.longitud / 1000000.0);
+               payload.latitud / -1000000.0,
+               payload.longitud / -1000000.0);
 
         forward_to_backend(&payload);
     }

@@ -38,12 +38,18 @@ RTC_DATA_ATTR uint64_t tiempo_switch = 0;
 RTC_DATA_ATTR bool sistema_inicializado = false;
 
 // Conmutación de baterías
-#define TIEMPO_CAMBIO_BATS 10
+#define TIEMPO_CAMBIO_BATS 300
 
 // VARIABLES DE DATOS
-double latitude; double longitude; char lat_hemisphere; char lon_hemisphere; float velocidad;
+double latitude; 
+double longitude; 
+char lat_hemisphere; 
+char lon_hemisphere; 
+float velocidad; 
+double lat_signed;
+double lon_signed;
 #define Vout_LM35       34 
-#define H_COEFICIENTE   0.18f 
+#define H_COEFICIENTE   0.10f 
 float lm_amb_temp;  
 mlx90614_data_t mlx_data; 
 float temp_interna; 
@@ -149,6 +155,16 @@ void read_gps() {
     ESP_LOGI("GPS","Intentando leer GPS...");
     raw_nmea(&latitude, &longitude, &lat_hemisphere, &lon_hemisphere, &velocidad);
     ESP_LOGI("GPS","Latitud: %f %c, Longitud: %f %c", latitude, lat_hemisphere, longitude, lon_hemisphere);
+    if  (lat_hemisphere == "S") {
+        lat_signed = -latitude;
+    } else {
+        lat_signed = latitude;
+    }
+    if (lon_hemisphere == "W") {
+        lon_signed = -longitude;
+    } else {
+        lon_signed = longitude;
+    }
 }
 
 void read_mpu6050() {
@@ -176,7 +192,7 @@ void read_mlx90614() {
 /* FUNCIONES DE CALCULO Y PROCESAMIENTO DE DATOS */
 void internal_temp() {
     ESP_LOGI("Temp.Calc","Calculando temperatura interna...");
-    temp_interna = (mlx_data.mlx_object_temp) + (mlx_data.mlx_object_temp - (lm_amb_temp)) * H_COEFICIENTE;
+    temp_interna = (mlx_data.mlx_object_temp-15) + (mlx_data.mlx_object_temp-15 - (lm_amb_temp)) * H_COEFICIENTE;
     ESP_LOGI("Temp.Calc","Temperatura interna estimada: %.2f °C", temp_interna); 
 }
 
@@ -200,8 +216,8 @@ void sensar_enviar(void *pvParameters){
     payload_t paquete;
     paquete.id_collar = 122;
     paquete.temperatura = temp_interna;
-    paquete.latitud = (int32_t)(-latitude * 1000000.0);
-    paquete.longitud = (int32_t)(-longitude * 1000000.0);
+    paquete.latitud = (int32_t)(latitude * 1000000.0);
+    paquete.longitud = (int32_t)(longitude * 1000000.0);
 
     transmitir_datos(&paquete);
 
@@ -234,6 +250,7 @@ void sensar_enviar(void *pvParameters){
 // MAIN
 void app_main(void)
 {
+    /*
     ESP_LOGI("MAIN","Comenzando los procesos principales");
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
 
@@ -272,8 +289,8 @@ void app_main(void)
     // Despierto de Deep Sleep por movimiento (EXT0)
     xTaskCreate(sensar_enviar, "sensar_enviar_task", 4096, NULL, 5, NULL);    
 
+    */
     
-    /*
 
     //Función utilizada para probar el sistema sin Deep-Sleep
     ESP_LOGI("Inicializacion","Iniciando buses y perifericos.");
@@ -306,9 +323,6 @@ void app_main(void)
         // Evalúa y aplica el cambio de batería
         ESP_LOGI("Energía","Analizando estado de switcheo.");
         hora_actual();
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
-
-    */
-
 }
