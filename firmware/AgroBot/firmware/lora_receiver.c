@@ -72,7 +72,7 @@ static int request_gpio_lines(void)
         reset_line_fd = -1;
         close(chip_fd);
         return -1;
-    }
+    }       
     dio0_event_fd = dio0_request.fd;
 
     close(chip_fd);
