@@ -80,6 +80,30 @@ sudo ./build/agrobot-lora-receiver
 
 El backend debe estar levantado en la Raspberry antes del receptor. `sudo` permite acceder a `/dev/spidev0.0` y `/dev/gpiochip0`; también se pueden configurar los grupos/permisos del usuario para evitarlo. El AgroNeck y el AgroBot deben usar la misma frecuencia y configuración LoRa.
 
+### Destinos de la telemetría
+
+El receptor reenvía cada lectura, como una línea JSON por TCP, a todos los destinos de
+`TELEMETRY_TARGETS` (hasta 4, separados por coma). Sin la variable usa `127.0.0.1:4001`,
+el servidor AgroBot local. `GATEWAY_ID` (opcional) se agrega como `"GW"` para que MooPing
+sepa qué gateway recibió el paquete:
+
+```bash
+sudo TELEMETRY_TARGETS=127.0.0.1:4001,192.168.1.50:4001 GATEWAY_ID=AGROBOT-01 \
+  ./build/agrobot-lora-receiver
+```
+
+Si el backend exige clave (`TELEMETRY_API_KEY` en MooPing), pasala con `TELEMETRY_KEY=<clave>`:
+viaja en cada JSON como `"KEY"` (solo letras, números, `-`, `_`, `.` o `~`; hasta 64).
+
+`sudo` descarta las variables de entorno, por eso van después de `sudo`. Cada destino es
+independiente: si uno no responde, el envío corta a los 2 s y sigue con el siguiente, sin
+dejar de escuchar la radio. Además de `ID`, `LAT`, `LONG` y `TEMP`, el JSON lleva `RSSI` y
+`SNR` del paquete recibido:
+
+```json
+{"ID":"COLLAR-84","LAT":-34.250000,"LONG":-59.430000,"TEMP":"38.60","RSSI":-97,"SNR":7.25,"GW":"AGROBOT-01"}
+```
+
 ## Compilación y ejecución
 
 Para compilar el simulador TCP:
@@ -90,9 +114,3 @@ gcc main.c -o agro-neck-example
 ```
 
 Antes de ejecutarlo, el servidor backend debe estar iniciado y escuchando en el puerto TCP configurado.
-
-## Limitaciones actuales
-
-- El simulador sigue usando datos GPS y temperatura de prueba.
-- El receptor reenvía la telemetría al backend, pero la recepción de radio debe validarse en el hardware conectado.
-- Consultá `../Setup.md` para los pasos de instalación y prueba de extremo a extremo.
