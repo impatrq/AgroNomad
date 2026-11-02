@@ -393,30 +393,4 @@ Usa la instancia del mapa para centrarlo suavemente en la posicion seleccionada.
 
 Muestra formulario de email y contraseña y envia `POST /api/login`. Sin embargo, el backend actual no implementa esa ruta ni una autenticacion real.
 
-## 10. Resumen de lo implementado actualmente
 
-- Recepcion TCP de payloads JSON.
-- Persistencia de animales, dispositivos y posiciones GPS.
-- Persistencia de limites de campos en PostgreSQL/PostGIS.
-- Carga de datos demo idempotente.
-- API para animales, campos, estado y renombrado.
-- Dashboard con mapa, marcadores y limites.
-- Actualizacion periodica de animales cada 15 segundos.
-- Reconexion basica del cliente C cuando se pierde el socket.
-
-## 11. Lista de pendientes
-
-Estas funciones aparecen en los documentos de planificacion, pero no estan terminadas en el codigo actual:
-
-1. Actualizar `devices.last_seen` en cada paquete recibido.
-2. Guardar `FIRMWARE_VERS` y `HARDWARE_VERS` enviados por el collar.
-3. Implementar consultas y endpoints para el historial de posiciones.
-4. Dibujar trayectos historicos con colores segun movimiento.
-5. Detectar y marcar animales fuera de los limites del campo.
-6. Implementar login, cookies/sesiones y proteccion de rutas.
-7. Agregar la ruta frontend `/history/:id`.
-8. Separar mejor datos demo de datos reales.
-9. Reemplazar polling por WebSocket si se necesita tiempo real.
-10. Agregar limites de tamaño y validacion mas robusta para mensajes TCP.
-11. Revisar el manejo de errores de operaciones asincronas del socket.
-12. Agregar backups automaticos y almacenamiento de telemetria si el volumen crece.
