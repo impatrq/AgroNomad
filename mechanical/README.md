@@ -9,8 +9,10 @@ Modelos 3D de las carcasas desarrolladas para el AgroNeck y el AgroBot.
 
 ---
 
-## AgroNeck
-![AgroNeck](renders/AgroNeck.PNG)
+### AgroNeck  
+<img src="Renders/AgroNeck.png" alt="AgroNeck" width="400">
 
-## AgroBot
-![AgroBot](renders/AgroBot.PNG)
+### AgroBot
+<img src="Renders/AgroBot.png" alt="AgroBot" width="400">
+
+---

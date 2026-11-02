@@ -97,7 +97,7 @@ static int request_gpio_lines(void)
         reset_line_fd = -1;
         close(chip_fd);
         return -1;
-    }
+    }       
     dio0_event_fd = dio0_request.fd;
 
     close(chip_fd);
@@ -441,6 +441,14 @@ static int forward_to_target(const telemetry_target_t *target, const char *json)
         return -1;
     }
 
+    char json[192];
+    snprintf(json, sizeof(json),
+             "{\"ID\":\"COLLAR-%u\",\"LAT\":%.6f,\"LONG\":%.6f,\"TEMP\":\"%.2f\"}\n",
+             (unsigned)payload->id_collar,
+             payload->latitud / -1000000.0,
+             payload->longitud / -1000000.0,
+             payload->temperatura);
+
     int result = send_all(sock, json);
     if (result < 0) fprintf(stderr, "send telemetry to %s: %s\n", target->label, strerror(errno));
     close(sock);
@@ -529,8 +537,8 @@ int main(void)
         printf("Received collar=%u temperature=%.2f C latitude=%.6f longitude=%.6f\n",
                (unsigned)payload.id_collar,
                payload.temperatura,
-               payload.latitud / 1000000.0,
-               payload.longitud / 1000000.0);
+               payload.latitud / -1000000.0,
+               payload.longitud / -1000000.0);
 
         radio_quality_t quality;
         int has_quality = read_radio_quality(&quality) == 0;

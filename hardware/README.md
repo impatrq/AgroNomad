@@ -8,22 +8,27 @@ Diseños electrónicos del ecosistema AgroNomad desarrollados en KiCad.
 **Cortex/** Placa principal del AgroNeck con ESP32  
 **LoraShield/** Módulo adaptador de Lora SMD a THT  
 **MLXModule/** Placa de soporte del Sensor de Temperatura MLX90614  
+**MOSFETAdapter/** Mini adaptador diseñado para convertir MOSFETs SMD a THT
 **Solaria/** Placa de Alimentación Solar y Gestión Energética  
 
 ---
 
 ## AgroBot
-![AgroBot](Agrobot\AgroBot3D.PNG)  
+
+<img src="Agrobot\AgroBot3D.png" alt="Agrobot" width="400">
 
 ## Cortex
-![Cortex](Cortex\Cortex3D.PNG)  
+
+<img src="Cortex\Cortex3D.png" alt="Cortex" width="400">
 
 ## LoraShield
-![LoraShield](LoraShield\LoraShield3D.PNG)  
+
+<img src="LoraShield\LoraShield3D.png" alt="LoraShield" width="400">
 
 ## MLXModule
-![MLXModule](MLXModule\MLXModule3D.PNG)  
+
+<img src="MLXModule\MLXModule3D.png" alt="MLXModule" width="400">
 
 ## Solaria
-![Solaria](Solaria\Solaria3D.PNG)  
 
+<img src="Solaria\Solaria3D.png" alt="Solaria" width="400">

@@ -80,28 +80,24 @@ sudo ./build/agrobot-lora-receiver
 
 El backend debe estar levantado en la Raspberry antes del receptor. `sudo` permite acceder a `/dev/spidev0.0` y `/dev/gpiochip0`; también se pueden configurar los grupos/permisos del usuario para evitarlo. El AgroNeck y el AgroBot deben usar la misma frecuencia y configuración LoRa.
 
-### Destinos de la telemetría
+## Simulador de recepción LoRa
 
-El receptor reenvía cada lectura, como una línea JSON por TCP, a todos los destinos de
-`TELEMETRY_TARGETS` (hasta 4, separados por coma). Sin la variable usa `127.0.0.1:4001`,
-el servidor AgroBot local. `GATEWAY_ID` (opcional) se agrega como `"GW"` para que MooPing
-sepa qué gateway recibió el paquete:
+`lora_simulator.c` simula la recepción continua de un collar sin necesitar la
+Raspberry Pi ni el módulo LoRa. Antes de compilar, editá al comienzo del archivo
+`COLLAR_ID`, `TEMPERATURE_C`, `LATITUDE`, `LONGITUDE` y
+`SEND_INTERVAL_SECONDS` para establecer los valores y el intervalo de envío.
+
+El programa imprime cada lectura simulada y, si el backend está disponible,
+reenvía el mismo JSON al puerto TCP `127.0.0.1:4001`. Si el backend no está
+disponible, informa el error y continúa simulando; vuelve a intentar en la
+siguiente lectura. Se detiene con `Ctrl+C`.
+
+Compilalo y ejecutalo desde esta carpeta:
 
 ```bash
-sudo TELEMETRY_TARGETS=127.0.0.1:4001,192.168.1.50:4001 GATEWAY_ID=AGROBOT-01 \
-  ./build/agrobot-lora-receiver
-```
-
-Si el backend exige clave (`TELEMETRY_API_KEY` en MooPing), pasala con `TELEMETRY_KEY=<clave>`:
-viaja en cada JSON como `"KEY"` (solo letras, números, `-`, `_`, `.` o `~`; hasta 64).
-
-`sudo` descarta las variables de entorno, por eso van después de `sudo`. Cada destino es
-independiente: si uno no responde, el envío corta a los 2 s y sigue con el siguiente, sin
-dejar de escuchar la radio. Además de `ID`, `LAT`, `LONG` y `TEMP`, el JSON lleva `RSSI` y
-`SNR` del paquete recibido:
-
-```json
-{"ID":"COLLAR-84","LAT":-34.250000,"LONG":-59.430000,"TEMP":"38.60","RSSI":-97,"SNR":7.25,"GW":"AGROBOT-01"}
+cmake -S . -B build
+cmake --build build --target agrobot-lora-simulator
+./build/agrobot-lora-simulator
 ```
 
 ## Compilación y ejecución

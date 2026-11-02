@@ -15,7 +15,7 @@
 
 int lora_initialize(void);
 int lora_receive_packet(uint8_t *data, size_t capacity, size_t *length);
-//static int forward_to_backend(const agro_neck_payload_t *payload);
+// static int forward_to_backend(const agro_neck_payload_t *payload);
 void close_receiver(void);
 
 typedef struct __attribute__((packed)) {
