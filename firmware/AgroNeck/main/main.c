@@ -155,12 +155,12 @@ void read_gps() {
     ESP_LOGI("GPS","Intentando leer GPS...");
     raw_nmea(&latitude, &longitude, &lat_hemisphere, &lon_hemisphere, &velocidad);
     ESP_LOGI("GPS","Latitud: %f %c, Longitud: %f %c", latitude, lat_hemisphere, longitude, lon_hemisphere);
-    if  (lat_hemisphere == "S") {
+    if (lat_hemisphere == 'S') {
         lat_signed = -latitude;
     } else {
         lat_signed = latitude;
     }
-    if (lon_hemisphere == "W") {
+    if (lon_hemisphere == 'W') {
         lon_signed = -longitude;
     } else {
         lon_signed = longitude;
@@ -216,8 +216,8 @@ void sensar_enviar(void *pvParameters){
     payload_t paquete;
     paquete.id_collar = 122;
     paquete.temperatura = temp_interna;
-    paquete.latitud = (int32_t)(-latitude * 1000000.0);
-    paquete.longitud = (int32_t)(-longitude * 1000000.0);
+    paquete.latitud = (int32_t)(lat_signed * 1000000.0);
+    paquete.longitud = (int32_t)(lon_signed * 1000000.0);
 
     transmitir_datos(&paquete);
 
@@ -247,10 +247,13 @@ void sensar_enviar(void *pvParameters){
     vTaskDelete(NULL);
 }
 
+//Create State to change between send-everytime and send-on-motion. 
+#define SEND_EVERYTIME 1
+
 // MAIN
 void app_main(void)
 {
-    /*
+    #if !SEND_EVERYTIME
     ESP_LOGI("MAIN","Comenzando los procesos principales");
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
 
@@ -289,8 +292,8 @@ void app_main(void)
     // Despierto de Deep Sleep por movimiento (EXT0)
     xTaskCreate(sensar_enviar, "sensar_enviar_task", 4096, NULL, 5, NULL);    
 
-    */
-    
+    #endif
+    #if SEND_EVERYTIME  
 
     //Función utilizada para probar el sistema sin Deep-Sleep
     ESP_LOGI("Inicializacion","Iniciando buses y perifericos.");
@@ -314,8 +317,8 @@ void app_main(void)
         payload_t paquete;
         paquete.id_collar = 122;
         paquete.temperatura = temp_interna;
-        paquete.latitud = (int32_t)(latitude * 1000000.0);
-        paquete.longitud = (int32_t)(longitude * 1000000.0);
+        paquete.latitud = (int32_t)(lat_signed * 1000000.0);
+        paquete.longitud = (int32_t)(lon_signed * 1000000.0);
 
         transmitir_datos(&paquete);
 
@@ -325,4 +328,5 @@ void app_main(void)
         hora_actual();
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
+    #endif
 }
