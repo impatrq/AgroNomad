@@ -32,13 +32,17 @@
 // Mascara de manejo de los 4 pines
 #define GPIO_MOSFET_MASK ((1ULL<<MOSFET1) | (1ULL<<MOSFET2) | (1ULL<<MOSFET3) | (1ULL<<MOSFET4))
 
+// Conmutación de baterías
+#define TIEMPO_CAMBIO_BATS 300
+
+// Sensores temperatura
+#define Vout_LM35       34 
+#define H_COEFICIENTE   0.10f 
+
 // Variables guardadas en memoria RTC (sobreviven al Deep Sleep)
 RTC_DATA_ATTR bool estado_mosfet = true; // true = estado inicial (2+3), false = estado secundario (1+4)
 RTC_DATA_ATTR uint64_t tiempo_switch = 0;
 RTC_DATA_ATTR bool sistema_inicializado = false;
-
-// Conmutación de baterías
-#define TIEMPO_CAMBIO_BATS 300
 
 // VARIABLES DE DATOS
 double latitude; 
@@ -48,15 +52,17 @@ char lon_hemisphere;
 float velocidad; 
 double lat_signed;
 double lon_signed;
-#define Vout_LM35       34 
-#define H_COEFICIENTE   0.10f 
+
+// Variables de temperatura
 float lm_amb_temp;  
-mlx90614_data_t mlx_data; 
 float temp_interna; 
+
+mlx90614_data_t mlx_data; 
 
 // Inicialización de Salida de MOSFETs
 void init_mosfet_gpios() {
     gpio_deep_sleep_hold_dis();
+    
     gpio_hold_dis(MOSFET1);
     gpio_hold_dis(MOSFET2);
     gpio_hold_dis(MOSFET3);
@@ -76,20 +82,12 @@ void init_mosfet_gpios() {
 void aplica_estado_mosfet() {
     ESP_LOGI("MOSFETS","Aplicando estado %d...", estado_mosfet);
     if (estado_mosfet) { // Estado inicial: 2+3
-        //gpio_set_level(MOSFET1, 0);
-        //gpio_set_level(MOSFET4, 0);
-        //gpio_set_level(MOSFET2, 1);
-        //gpio_set_level(MOSFET3, 1);
         gpio_set_level(MOSFET2, 1);
         gpio_set_level(MOSFET3, 1);
         vTaskDelay(pdMS_TO_TICKS(1000));
         gpio_set_level(MOSFET1, 0);
         gpio_set_level(MOSFET4, 0);
     } else { // Estado secundario: 1+4
-        //gpio_set_level(MOSFET2, 0);
-        //gpio_set_level(MOSFET3, 0);
-        //gpio_set_level(MOSFET1, 1);
-        //gpio_set_level(MOSFET4, 1);
         gpio_set_level(MOSFET1, 1);
         gpio_set_level(MOSFET4, 1);
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -138,7 +136,10 @@ void hora_actual() {
     }
 }
 
-/* FUNCIONES DE LECTURA DE SENSORES */
+// ============================================================
+// FUNCIONES DE LECTURA DE SENSORES
+// ============================================================
+
 void read_lm35() {
     ESP_LOGI("read_lm35","Intentando leer LM35...");
     lm35_data_t data;
@@ -189,7 +190,9 @@ void read_mlx90614() {
     }
 }
 
-/* FUNCIONES DE CALCULO Y PROCESAMIENTO DE DATOS */
+// ============================================================
+// FUNCIONES DE CÁLCULO Y PROCESAMIENTO DE DATOS
+// ============================================================
 void internal_temp() {
     ESP_LOGI("Temp.Calc","Calculando temperatura interna...");
     temp_interna = (mlx_data.mlx_object_temp-15) + (mlx_data.mlx_object_temp-15 - (lm_amb_temp)) * H_COEFICIENTE;
