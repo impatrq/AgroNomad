@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useState } from 'react'
 import RenameAnimalModal from '../components/RenameAnimalModal'
 import TopNav from '../components/home/TopNav'
 import MapSection from '../components/home/MapSection'
@@ -27,6 +27,30 @@ export default function Home({ onNavigate }) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     setMenuOpen(false)
   }
+
+  // On first load, center the page view on the map instead of opening at the top.
+  useLayoutEffect(() => {
+    const mapSection = document.getElementById('map-section')
+    if (!mapSection) return
+
+    const centerOnMap = () => {
+      const headerHeight = document.querySelector('header')?.offsetHeight ?? 0
+      const sectionRect = mapSection.getBoundingClientRect()
+      const sectionCenter = window.scrollY + sectionRect.top + sectionRect.height / 2
+      const visibleViewportCenter = headerHeight + (window.innerHeight - headerHeight) / 2
+      const maxScroll = Math.max(
+        document.documentElement.scrollHeight - window.innerHeight,
+        0,
+      )
+
+      window.scrollTo({
+        top: Math.min(Math.max(sectionCenter - visibleViewportCenter, 0), maxScroll),
+        behavior: 'instant',
+      })
+    }
+
+    centerOnMap()
+  }, [])
 
   const mapPosition = useMemo(() => {
     if (selectedAnimal && hasValidAnimalPosition(selectedAnimal)) {
