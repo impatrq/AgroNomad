@@ -26,10 +26,22 @@ function FitAnimalPositions({ animals }) {
   return null
 }
 
-export default function AnimalMap({ animals, selectedAnimal, onSelectAnimal, yardBoundaries, mapPosition }) {
+export default function AnimalMap({
+  animals,
+  selectedAnimal,
+  onSelectAnimal,
+  yardBoundaries,
+  mapPosition,
+  historyPositions = [],
+}) {
   const positionedAnimals = useMemo(
     () => animals.filter(hasValidAnimalPosition),
     [animals]
+  )
+
+  const historyPath = useMemo(
+    () => historyPositions.map((position) => [position.lat, position.lng]),
+    [historyPositions]
   )
 
   return (
@@ -55,6 +67,32 @@ export default function AnimalMap({ animals, selectedAnimal, onSelectAnimal, yar
           >
             <Tooltip>{boundary.name}</Tooltip>
           </Polyline>
+        ))}
+
+        {historyPath.length > 1 && (
+          <Polyline
+            positions={historyPath}
+            pathOptions={{
+              color: '#38bdf8',
+              weight: 3,
+              opacity: 0.95,
+              dashArray: '6 8',
+            }}
+          />
+        )}
+
+        {historyPath.map((position, index) => (
+          <CircleMarker
+            key={`history-${position[0]}-${position[1]}-${index}`}
+            center={position}
+            radius={5}
+            pathOptions={{
+              fillColor: '#2563eb',
+              color: '#ffffff',
+              weight: 2,
+              fillOpacity: 0.95,
+            }}
+          />
         ))}
 
         {positionedAnimals.map((animal) => {

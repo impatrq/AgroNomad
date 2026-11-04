@@ -7,6 +7,7 @@ export default function MapSection({
   yardBoundaries,
   mapPosition,
   animalsWithoutPosition,
+  historyPositions,
   loading,
   error,
 }) {
@@ -58,6 +59,7 @@ export default function MapSection({
         onSelectAnimal={onSelectAnimal}
         yardBoundaries={yardBoundaries}
         mapPosition={mapPosition}
+        historyPositions={historyPositions}
       />
     </div>
   )

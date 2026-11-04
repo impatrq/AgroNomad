@@ -3,6 +3,18 @@ export function hasValidAnimalPosition(animal) {
     animal.lat !== 0 && animal.lng !== 0
 }
 
+const SAME_POSITION_EPSILON = 1e-7
+
+export function isSameAnimalPosition(positionA, positionB, epsilon = SAME_POSITION_EPSILON) {
+  if (!positionA || !positionB) return false
+
+  const latDifference = Math.abs(Number(positionA.lat) - Number(positionB.lat))
+  const lngDifference = Math.abs(Number(positionA.lng) - Number(positionB.lng))
+
+  return Number.isFinite(latDifference) && Number.isFinite(lngDifference) &&
+    latDifference <= epsilon && lngDifference <= epsilon
+}
+
 export function normalizeBoundaryGroups(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return []

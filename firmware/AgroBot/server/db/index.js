@@ -463,6 +463,55 @@ export async function renameAnimal(id, newName) {
 
 
 /*
+
+  listAnimalHistory(id, limit) -> Retrieves the most recent GPS positions for an animal
+  and returns them ordered from oldest to newest, so the client can draw the traveled path.
+  The animal can be identified by its internal id or by its device UID.
+
+*/
+
+export async function listAnimalHistory(id, limit = 10) {
+  await initializeDatabase()
+  const client = await getDb().connect()
+
+  try {
+    const userId = await getDemoUserId(client)
+    const animalResult = await client.query(
+      `SELECT a.id
+       FROM animals a
+       LEFT JOIN animal_devices ad ON ad.animal_id = a.id AND ad.unassigned_at IS NULL
+       LEFT JOIN devices d ON d.id = ad.device_id
+       WHERE a.user_id = $1 AND (a.id::text = $2 OR d.device_uid = $2)
+       LIMIT 1`,
+      [userId, String(id)]
+    )
+
+    if (animalResult.rows.length === 0) {
+      return null
+    }
+
+    const historyResult = await client.query(
+      `SELECT ST_Y(location::geometry) AS latitude,
+              ST_X(location::geometry) AS longitude,
+              timestamp
+       FROM gps_positions
+       WHERE animal_id = $1 AND location IS NOT NULL
+       ORDER BY timestamp DESC, id DESC
+       LIMIT $2`,
+      [animalResult.rows[0].id, limit]
+    )
+
+    return historyResult.rows.reverse().map((row) => ({
+      lat: Number(row.latitude),
+      lng: Number(row.longitude),
+      timestamp: row.timestamp,
+    }))
+  } finally {
+    client.release()
+  }
+}
+
+/*
   -----------------------------------------------------------------------------
   getDemoUserId(client) -> Retrieves the ID of the demo user from the database. 
   If the demo user doesn't exist, it creates one and returns its ID.
