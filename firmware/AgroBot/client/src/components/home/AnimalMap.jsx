@@ -17,9 +17,9 @@ function FitAnimalPositions({ animals }) {
 
     const positions = positionedAnimals.map((animal) => [animal.lat, animal.lng])
     if (positions.length === 1) {
-      map.setView(positions[0], 15)
+      map.setView(positions[0], 18)
     } else if (positions.length > 1) {
-      map.fitBounds(positions, { padding: [32, 32], maxZoom: 15 })
+      map.fitBounds(positions, { padding: [32, 32], maxZoom: 18 })
     }
   }, [animals, map])
 
@@ -48,7 +48,7 @@ export default function AnimalMap({
     <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 relative z-0">
       <MapContainer
         center={mapPosition}
-        zoom={15}
+        zoom={18}
         scrollWheelZoom
         className="h-140 w-full relative z-0"
         style={{ zIndex: 0 }}
@@ -63,7 +63,7 @@ export default function AnimalMap({
           <Polyline
             key={boundary.name}
             positions={boundary.positions}
-            pathOptions={{ color: '#2563eb', weight: 3, opacity: 0.95 }}
+            pathOptions={{ color: '#56eb2575', weight: 2, opacity: 0.65 , dashArray: '4 6'}}
           >
             <Tooltip>{boundary.name}</Tooltip>
           </Polyline>
@@ -85,7 +85,7 @@ export default function AnimalMap({
           <CircleMarker
             key={`history-${position[0]}-${position[1]}-${index}`}
             center={position}
-            radius={5}
+            radius={2}
             pathOptions={{
               fillColor: '#2563eb',
               color: '#ffffff',
@@ -102,7 +102,7 @@ export default function AnimalMap({
             <CircleMarker
               key={animal.id}
               center={[animal.lat, animal.lng]}
-              radius={7}
+              radius={5}
               pathOptions={{
                 fillColor: isSelected ? '#f59e0b' : '#05960c',
                 color: isSelected ? '#f59e0b' : '#ffffff',
