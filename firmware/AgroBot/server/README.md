@@ -33,6 +33,8 @@ El backend de AgroNomad recibe la telemetría enviada por los dispositivos de lo
 4. La lectura se guarda junto con el animal, el dispositivo y la temperatura.
 5. El frontend consulta la API HTTP para mostrar los datos actualizados.
 
+Los payloads con `ID: "RP"` corresponden a la Raspberry Pi del AgroBot, no a un collar. El backend los descarta y excluye de la lista cualquier registro `RP` creado anteriormente.
+
 Ejemplo de payload aceptado:
 
 ```json

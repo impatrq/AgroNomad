@@ -100,6 +100,8 @@ El salto de linea al final permite separar mensajes consecutivos.
 
 El programa usa datos fijos. No recibe aun datos reales de LoRa. Ademas, el backend actualmente guarda temperatura y ubicacion, pero no usa correctamente `FIRMWARE_VERS` ni `HARDWARE_VERS` del payload.
 
+El AgroBot tambien puede enviar un payload de estado con `ID: "RP"`. Ese identificador pertenece a la Raspberry Pi y el backend lo ignora; no se muestra como un animal.
+
 ## 5. Backend: `server/server.js`
 
 El backend contiene dos servidores independientes:
@@ -392,5 +394,3 @@ Usa la instancia del mapa para centrarlo suavemente en la posicion seleccionada.
 ### `client/src/pages/Login.jsx`
 
 Muestra formulario de email y contraseña y envia `POST /api/login`. Sin embargo, el backend actual no implementa esa ruta ni una autenticacion real.
-
-

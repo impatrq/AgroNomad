@@ -256,6 +256,14 @@ export async function listAnimals() {
        LEFT JOIN animal_devices ad ON ad.animal_id = a.id AND ad.unassigned_at IS NULL
        LEFT JOIN devices d ON d.id = ad.device_id
        WHERE a.user_id = $1
+         AND NOT EXISTS (
+           SELECT 1
+           FROM animal_devices rp_ad
+           JOIN devices rp_d ON rp_d.id = rp_ad.device_id
+           WHERE rp_ad.animal_id = a.id
+             AND rp_ad.unassigned_at IS NULL
+             AND UPPER(BTRIM(rp_d.device_uid)) = 'RP'
+         )
        ORDER BY a.id`,
       [userId]
     )
@@ -322,7 +330,7 @@ export async function upsertAnimalSnapshot(payload) {
     const lng = Number(payload.LONG ?? payload.long ?? payload.longitude ?? payload.Longitude)
     const temp = Number(payload.TEMP ?? payload.temp ?? payload.temperature ?? payload.Temperature ?? 0)
 
-    if (!id || Number.isNaN(lat) || Number.isNaN(lng)) {
+    if (!id || id.toUpperCase() === 'RP' || Number.isNaN(lat) || Number.isNaN(lng)) {
       return null
     }
     
