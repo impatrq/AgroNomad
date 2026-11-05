@@ -89,20 +89,12 @@ void aplica_estado_mosfet() {
     return;
 #endif
     if (estado_mosfet) { // Estado inicial: 2+3
-        //gpio_set_level(MOSFET1, 0);
-        //gpio_set_level(MOSFET4, 0);
-        //gpio_set_level(MOSFET2, 1);
-        //gpio_set_level(MOSFET3, 1);
         gpio_set_level(MOSFET1, 1);
         gpio_set_level(MOSFET4, 1);
         vTaskDelay(pdMS_TO_TICKS(1000));
         gpio_set_level(MOSFET2, 0);
         gpio_set_level(MOSFET3, 0);
     } else { // Estado secundario: 1+4
-        //gpio_set_level(MOSFET2, 0);
-        //gpio_set_level(MOSFET3, 0);
-        //gpio_set_level(MOSFET1, 1);
-        //gpio_set_level(MOSFET4, 1);
         gpio_set_level(MOSFET2, 1);
         gpio_set_level(MOSFET3, 1);
         vTaskDelay(pdMS_TO_TICKS(1000));

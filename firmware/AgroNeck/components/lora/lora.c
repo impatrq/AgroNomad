@@ -95,9 +95,9 @@ static void lora_dump(const char *when) {
 
 // Configuracion de la radio (sin tocar el bus SPI ni el pin de reset)
 static void lora_apply_config(void) {
-    lora_write_register(0x01, 0x80); // RegOpMode: LoRa + Sleep
+    lora_write_register(0x01, 0x88); // RegOpMode: LoRa + Sleep
     vTaskDelay(pdMS_TO_TICKS(10));
-    lora_write_register(0x01, 0x81); // RegOpMode: LoRa + standby
+    lora_write_register(0x01, 0x89); // RegOpMode: LoRa + standby
     vTaskDelay(pdMS_TO_TICKS(2));    // dejar asentar el oscilador
 
     // Frecuencia 433 MHz (para SX1278)
@@ -109,10 +109,6 @@ static void lora_apply_config(void) {
     lora_write_register(0x1E, 0x74);
     lora_write_register(0x26, 0x00);
     lora_write_register(0x39, 0x34);
-
-    lora_write_register(0x1D, 0x72);
-    lora_write_register(0x1E, 0x74); 
-    lora_write_register(0x26, 0x00);
 
     // Potencia de transmisión
     //0x80 // 2 dBm
@@ -126,7 +122,7 @@ static bool lora_tx_attempt(const uint8_t *data, size_t length, uint32_t timeout
     lora_dump(tag); // estado ANTES de transmitir
 
     // 1. Poner el chip en Standby para poder escribir la FIFO sin corrupción
-    lora_write_register(0x01, 0x81); // O 0x89 si usas 433MHz
+    lora_write_register(0x01, 0x89); // O 0x89 si usas 433MHz
 
     // 2. Resetear el puntero de transmisión de la FIFO a la dirección base 0x00
     lora_write_register(0x0E, 0x00); // RegFifoTxBaseAddr
@@ -158,7 +154,7 @@ static bool lora_tx_attempt(const uint8_t *data, size_t length, uint32_t timeout
     lora_write_register(0x12, 0xFF); // RegIrqFlags
 
     // 6. INICIAR TRANSMISIÓN (RegOpMode = LoRa + TX)
-    lora_write_register(0x01, 0x83); // O 0x8B si usas 433MHz
+    lora_write_register(0x01, 0x8B); // O 0x8B si usas 433MHz
 
     // 7. Esperar a que la radio termine de transmitir por el aire (TxDone)
     //    NOTA: vTaskDelay(pdMS_TO_TICKS(1)) == vTaskDelay(0) porque
@@ -186,7 +182,7 @@ static bool lora_tx_attempt(const uint8_t *data, size_t length, uint32_t timeout
 
     // 9. REINICIAR PUNTERO DE FIFO Y VOLVER A SLEEP/STANDBY
     lora_write_register(0x0D, 0x00);
-    lora_write_register(0x01, 0x80); // O 0x88 si usas 433MHz
+    lora_write_register(0x01, 0x88); // O 0x88 si usas 433MHz
 
     return ok;
 }
