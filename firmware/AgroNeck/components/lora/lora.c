@@ -191,7 +191,7 @@ static bool lora_tx_attempt(const uint8_t *data, size_t length, uint32_t timeout
     return ok;
 }
 
-static void lora_reinit(void) {
+void lora_reinit(void) {
     lora_reset();
     vTaskDelay(pdMS_TO_TICKS(20));
     lora_apply_config();

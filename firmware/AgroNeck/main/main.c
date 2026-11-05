@@ -93,21 +93,21 @@ void aplica_estado_mosfet() {
         //gpio_set_level(MOSFET4, 0);
         //gpio_set_level(MOSFET2, 1);
         //gpio_set_level(MOSFET3, 1);
-        gpio_set_level(MOSFET2, 0);
-        gpio_set_level(MOSFET3, 0);
-        vTaskDelay(pdMS_TO_TICKS(1000));
         gpio_set_level(MOSFET1, 1);
         gpio_set_level(MOSFET4, 1);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        gpio_set_level(MOSFET2, 0);
+        gpio_set_level(MOSFET3, 0);
     } else { // Estado secundario: 1+4
         //gpio_set_level(MOSFET2, 0);
         //gpio_set_level(MOSFET3, 0);
         //gpio_set_level(MOSFET1, 1);
         //gpio_set_level(MOSFET4, 1);
-        gpio_set_level(MOSFET1, 0);
-        gpio_set_level(MOSFET4, 0);
-        vTaskDelay(pdMS_TO_TICKS(1000));
         gpio_set_level(MOSFET2, 1);
         gpio_set_level(MOSFET3, 1);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        gpio_set_level(MOSFET1, 0);
+        gpio_set_level(MOSFET4, 0);
     }
 }
 
@@ -143,6 +143,7 @@ void hora_actual() {
     // Evalúa si ya pasó el tiempo necesario para cambiar de batería
     if (transcurrido >= TIEMPO_CAMBIO_BATS) {
         switch_mosfet();
+        lora_reinit();
         tiempo_switch = tiempo_actual; // Se actualiza el tiempo base con la hora actual
     } else {
         ESP_LOGI("MOSFETS", "Aún no transcurrió el tiempo (%llu/%llu s). Se mantiene estado.", 
