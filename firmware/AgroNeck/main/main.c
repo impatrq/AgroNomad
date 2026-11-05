@@ -76,8 +76,6 @@ void init_mosfet_gpios() {
         .pull_up_en = GPIO_PULLUP_DISABLE,
     };
     gpio_config(&io_config);
-
-    aplica_estado_mosfet(); 
 }
 
 // Declara los estados de los MOSFETs
