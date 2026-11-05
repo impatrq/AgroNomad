@@ -215,10 +215,12 @@ void transmitir_datos(payload_t *paquete){
 }
 
 void lora_init(void){
-    // 2. AHORA configuramos el pin de reset y reiniciamos el módulo
+    gpio_reset_pin(LORA_CS);
+    gpio_set_direction(LORA_CS, GPIO_MODE_OUTPUT);
+    gpio_set_level(LORA_CS, 1);
+
     gpio_reset_pin(LORA_RESET);
     gpio_set_direction(LORA_RESET, GPIO_MODE_OUTPUT);
-    gpio_reset_pin(LORA_CS);
     lora_reset();
 
     lora_spi_init();

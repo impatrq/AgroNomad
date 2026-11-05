@@ -76,6 +76,8 @@ void init_mosfet_gpios() {
         .pull_up_en = GPIO_PULLUP_DISABLE,
     };
     gpio_config(&io_config);
+
+    aplica_estado_mosfet(); 
 }
 
 // Declara los estados de los MOSFETs
@@ -91,13 +93,13 @@ void aplica_estado_mosfet() {
     if (estado_mosfet) { // Estado inicial: 2+3
         gpio_set_level(MOSFET1, 1);
         gpio_set_level(MOSFET4, 1);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(10));
         gpio_set_level(MOSFET2, 0);
         gpio_set_level(MOSFET3, 0);
     } else { // Estado secundario: 1+4
         gpio_set_level(MOSFET2, 1);
         gpio_set_level(MOSFET3, 1);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(10));
         gpio_set_level(MOSFET1, 0);
         gpio_set_level(MOSFET4, 0);
     }
