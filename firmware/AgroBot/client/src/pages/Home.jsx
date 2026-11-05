@@ -22,7 +22,7 @@ export default function Home({ onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [renameModalOpen, setRenameModalOpen] = useState(false)
 
-  const animalsWithoutPosition = animals.filter((animal) => !hasValidAnimalPosition(animal))
+  const animalsWithoutPosition = animals.filter((animal) => !animal.hasPosition)
   const { positions: animalHistory } = useAnimalHistory(selectedAnimal?.id)
 
   const historyPositions = useMemo(() => {

@@ -62,15 +62,21 @@ export default function useAnimalDashboard() {
         return
       }
 
-      const normalized = rawAnimals.map((item) => ({
-        id: String(item.id ?? ''),
-        name: item.name ?? `Animal ${item.id ?? ''}`,
-        lat: Number(item.lat ?? 0),
-        lng: Number(item.lng ?? 0),
-        temp: String(item.temp ?? ''),
-      }))
+      const normalized = rawAnimals.map((item) => {
+        const lat = Number(item.lat ?? 0)
+        const lng = Number(item.lng ?? 0)
 
-      const missingPositionAnimals = normalized.filter((animal) => !hasValidAnimalPosition(animal))
+        return {
+          id: String(item.id ?? ''),
+          name: item.name ?? `Animal ${item.id ?? ''}`,
+          lat,
+          lng,
+          hasPosition: item.hasPosition !== false && hasValidAnimalPosition({ lat, lng }),
+          temp: String(item.temp ?? ''),
+        }
+      })
+
+      const missingPositionAnimals = normalized.filter((animal) => !animal.hasPosition)
       const newlyMissingPositionAnimals = missingPositionAnimals.filter(
         (animal) => !missingPositionIdsRef.current.has(animal.id)
       )

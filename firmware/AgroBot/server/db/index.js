@@ -271,13 +271,49 @@ export async function listAnimals() {
     const animals = []
     for (const row of result.rows) {
       const latestGpsResult = await client.query(
-        `SELECT ST_Y(location::geometry) AS latitude,
-                ST_X(location::geometry) AS longitude,
-                temperature
-         FROM gps_positions
-         WHERE animal_id = $1
-         ORDER BY timestamp DESC
-         LIMIT 1`,
+        `SELECT ST_Y(
+                  COALESCE(
+                    CASE
+                      WHEN ST_Y(latest.location::geometry) <> 0
+                       AND ST_X(latest.location::geometry) <> 0
+                      THEN latest.location
+                    END,
+                    last_valid.location
+                  )::geometry
+                ) AS latitude,
+                ST_X(
+                  COALESCE(
+                    CASE
+                      WHEN ST_Y(latest.location::geometry) <> 0
+                       AND ST_X(latest.location::geometry) <> 0
+                      THEN latest.location
+                    END,
+                    last_valid.location
+                  )::geometry
+                ) AS longitude,
+                COALESCE(
+                  ST_Y(latest.location::geometry) <> 0
+                  AND ST_X(latest.location::geometry) <> 0,
+                  FALSE
+                ) AS has_position,
+                latest.temperature
+         FROM (
+           SELECT location, temperature
+           FROM gps_positions
+           WHERE animal_id = $1
+           ORDER BY timestamp DESC, id DESC
+           LIMIT 1
+         ) latest
+         LEFT JOIN LATERAL (
+           SELECT location
+           FROM gps_positions
+           WHERE animal_id = $1
+             AND location IS NOT NULL
+             AND ST_Y(location::geometry) <> 0
+             AND ST_X(location::geometry) <> 0
+           ORDER BY timestamp DESC, id DESC
+           LIMIT 1
+         ) last_valid ON TRUE`,
         [row.id]
       )
       const latest = latestGpsResult.rows[0] || {}
@@ -287,6 +323,7 @@ export async function listAnimals() {
         name: row.name,
         lat: Number(latest.latitude ?? 0),
         lng: Number(latest.longitude ?? 0),
+        hasPosition: latest.has_position === true,
         temp: String(latest.temperature ?? ''),
       })
     }

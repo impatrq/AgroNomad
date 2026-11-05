@@ -97,21 +97,26 @@ export default function AnimalMap({
 
         {positionedAnimals.map((animal) => {
           const isSelected = animal.id === selectedAnimal?.id
+          const hasCurrentPosition = animal.hasPosition !== false
 
           return (
             <CircleMarker
               key={animal.id}
               center={[animal.lat, animal.lng]}
-              radius={5}
+              radius={hasCurrentPosition ? 5 : 7}
               pathOptions={{
-                fillColor: isSelected ? '#f59e0b' : '#05960c',
-                color: isSelected ? '#f59e0b' : '#ffffff',
-                weight: isSelected ? 3 : 2,
-                fillOpacity: 0.95,
+                fillColor: hasCurrentPosition ? (isSelected ? '#f59e0b' : '#05960c') : '#94a3b8',
+                color: hasCurrentPosition ? (isSelected ? '#f59e0b' : '#ffffff') : '#334155',
+                weight: hasCurrentPosition ? (isSelected ? 3 : 2) : 3,
+                fillOpacity: 1,
               }}
               eventHandlers={{ click: () => onSelectAnimal(animal) }}
             >
-              <Tooltip>{animal.name}</Tooltip>
+              <Tooltip>
+                {hasCurrentPosition
+                  ? animal.name
+                  : `${animal.name} — última posición conocida; sin coordenadas actuales`}
+              </Tooltip>
             </CircleMarker>
           )
         })}
