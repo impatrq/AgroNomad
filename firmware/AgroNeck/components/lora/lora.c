@@ -13,6 +13,11 @@
     TRANSMISOR LORA 
     AGRONECK
 
+    *** VERSION DE DIAGNOSTICO ***
+    - Loguea los registros del SX1278 antes/despues de cada TX.
+    - Timeout real (ya no depende de pdMS_TO_TICKS(1) == 0 ticks).
+    - Si el TX falla: resetea la radio, la reconfigura y reintenta una vez.
+
 */
 
 static const char *TAG = "LoRa";
@@ -63,7 +68,7 @@ static uint8_t lora_read_register(uint8_t reg) {
     return rx_data[1];
 }
 
-// Funcion de escritura registros fifo LoRA( MSB + adress // payload )
+// Funcion de escritura registros fifo LoRa( MSB + adress // payload )
 static void lora_write_register(uint8_t address, uint8_t payload){
     uint8_t tx_data[2] = { address | 0x80, payload }; 
     spi_transaction_t t = {
@@ -76,8 +81,50 @@ static void lora_write_register(uint8_t address, uint8_t payload){
     assert(ret == ESP_OK);
 }
 
-// Función para enviar una cadena
-static void lora_send_packetb(const uint8_t *data, size_t length) {
+// Diagnostico: estado observable de la radio segun el SPI
+static void lora_dump(const char *when) {
+    uint8_t ver   = lora_read_register(0x42);
+    uint8_t op    = lora_read_register(0x01);
+    uint8_t irq   = lora_read_register(0x12);
+    uint8_t frf_m = lora_read_register(0x06);
+    uint8_t frf_l = lora_read_register(0x08);
+    uint8_t mcfg1 = lora_read_register(0x1D);
+    ESP_LOGW(TAG, "[%s] ver=0x%02X opmode=0x%02X irq=0x%02X frf=0x%02X..0x%02X mcfg1=0x%02X",
+             when, ver, op, irq, frf_m, frf_l, mcfg1);
+}
+
+// Configuracion de la radio (sin tocar el bus SPI ni el pin de reset)
+static void lora_apply_config(void) {
+    lora_write_register(0x01, 0x80); // RegOpMode: LoRa + Sleep
+    vTaskDelay(pdMS_TO_TICKS(10));
+    lora_write_register(0x01, 0x81); // RegOpMode: LoRa + standby
+    vTaskDelay(pdMS_TO_TICKS(2));    // dejar asentar el oscilador
+
+    // Frecuencia 433 MHz (para SX1278)
+    lora_write_register(0x06, 0x6C);
+    lora_write_register(0x07, 0x40);
+    lora_write_register(0x08, 0x00);
+
+    lora_write_register(0x1D, 0x72);
+    lora_write_register(0x1E, 0x74);
+    lora_write_register(0x26, 0x00);
+    lora_write_register(0x39, 0x34);
+
+    lora_write_register(0x1D, 0x72);
+    lora_write_register(0x1E, 0x74); 
+    lora_write_register(0x26, 0x00);
+
+    // Potencia de transmisión
+    //0x80 // 2 dBm
+    //0x83 // 5 dBm
+    //0x8F // 17 dBm
+    lora_write_register(0x09, 0x80); // Potencia supuestamente "ideal"
+}
+
+// Un intento de TX. Devuelve true solo si se vio TxDone.
+static bool lora_tx_attempt(const uint8_t *data, size_t length, uint32_t timeout_ms, const char *tag) {
+    lora_dump(tag); // estado ANTES de transmitir
+
     // 1. Poner el chip en Standby para poder escribir la FIFO sin corrupción
     lora_write_register(0x01, 0x81); // O 0x89 si usas 433MHz
 
@@ -92,7 +139,7 @@ static void lora_send_packetb(const uint8_t *data, size_t length) {
     uint8_t *spi_buf = heap_caps_malloc(length + 1, MALLOC_CAP_DMA);
     if (spi_buf == NULL) {
         ESP_LOGE(TAG, "Error: No se pudo asignar memoria buffer SPI");
-        return;
+        return false;
     }
 
     spi_buf[0] = 0x00 | 0x80; // Dirección FIFO (0x00) + Bit de escritura (0x80)
@@ -114,15 +161,24 @@ static void lora_send_packetb(const uint8_t *data, size_t length) {
     lora_write_register(0x01, 0x83); // O 0x8B si usas 433MHz
 
     // 7. Esperar a que la radio termine de transmitir por el aire (TxDone)
-    uint8_t irq_flags;
-    int timeout = 1000;
-    while (timeout--) {
+    //    NOTA: vTaskDelay(pdMS_TO_TICKS(1)) == vTaskDelay(0) porque
+    //    CONFIG_FREERTOS_HZ=100 => el "timeout" original no esperaba nada.
+    uint32_t waited = 0;
+    bool ok = false;
+    uint8_t irq_flags = 0;
+    while (waited < timeout_ms) {
         irq_flags = lora_read_register(0x12);
         if (irq_flags & 0x08) { // Bit 3 = TxDone
-            ESP_LOGI(TAG, "Paquete enviado con éxito (%d bytes)", length);
+            ok = true;
+            ESP_LOGI(TAG, "Paquete enviado con éxito (%d bytes) en %lu ms", length, (unsigned long)waited);
             break;
         }
-        vTaskDelay(pdMS_TO_TICKS(1));
+        vTaskDelay(1); // 1 tick = 10 ms con CONFIG_FREERTOS_HZ=100
+        waited += 10;
+    }
+    if (!ok) {
+        ESP_LOGE(TAG, "%s: TIMEOUT tras %lu ms (irq=0x%02X, opmode=0x%02X)",
+                 tag, (unsigned long)timeout_ms, lora_read_register(0x12), lora_read_register(0x01));
     }
 
     // 8. Limpiar la bandera TxDone para que no afecte la siguiente ráfaga
@@ -131,29 +187,35 @@ static void lora_send_packetb(const uint8_t *data, size_t length) {
     // 9. REINICIAR PUNTERO DE FIFO Y VOLVER A SLEEP/STANDBY
     lora_write_register(0x0D, 0x00);
     lora_write_register(0x01, 0x80); // O 0x88 si usas 433MHz
+
+    return ok;
+}
+
+static void lora_reinit(void) {
+    lora_reset();
+    vTaskDelay(pdMS_TO_TICKS(20));
+    lora_apply_config();
+}
+
+uint8_t lora_version(void) {
+    return lora_read_register(0x42);
 }
 
 void transmitir_datos(payload_t *paquete){
-    //payload_t paquete; // creo el paquete afuera de la funcion
-    
-    /*
-        // consigo los datos fuera de la funcion, ej:
-    uint16_t id_local = 122; // numero identificatorio individual para cada collar
-    uint8_t  pulsaciones   = 82; // ppm obtenidas mediante el sistema de pulsaciones
-    float    temp_sensor   = 30.85; // promedio o calculo estimado de temperatura interna
-    double   gps_latitud   = -42.0690;
-    double   gps_longitud  = -67.6767; // datos simulados de gps
-    */
-    
-    /*
-        // mapeo y empaqueto afuera de la funcion
-    paquete.id_collar = id_local;
-    paquete.bpm = pulsaciones;
-    paquete.latitud = (uint32_t)(gps_latitud*10000) // un 0 por cada decimal, lo tengo q pasar a numero entero : ej -42.0690 > -420690
-    // *etc, despues llamo la funcion enviando el paquete como argumento
-    */
-    
-    lora_send_packetb((uint8_t *)paquete, sizeof(*paquete));
+    const uint8_t *data = (const uint8_t *)paquete;
+    size_t len = sizeof(*paquete);
+
+    if (lora_tx_attempt(data, len, 300, "TX-1")) {
+        return;
+    }
+
+    ESP_LOGE(TAG, "*** TX fallo: reseteo y reconfiguro la radio, reintento ***");
+    lora_reinit();
+    if (lora_tx_attempt(data, len, 600, "TX-2-reintento")) {
+        ESP_LOGW(TAG, "*** REINTENTO OK: la radio estaba VIVA pero en mal estado ***");
+    } else {
+        ESP_LOGE(TAG, "*** REINTENTO FALLO: la radio NO responde (alimentacion/reset?) ***");
+    }
 }
 
 void lora_init(void){
@@ -170,25 +232,6 @@ void lora_init(void){
     uint8_t version = lora_read_register(0x42);
     ESP_LOGI(TAG, "LoRa version register: 0x%02X", version);
 
-    // Configuración básica LoRa (modo standby, frecuencia, potencia, etc.)
-    lora_write_register(0x01, 0x80); // RegOpMode: LoRa + Sleep
-    vTaskDelay(pdMS_TO_TICKS(10));
-    lora_write_register(0x01, 0x81); // RegOpMode: LoRa + standby
-
-    // Frecuencia 433 MHz (para SX1278)
-    lora_write_register(0x06, 0x6C);
-    lora_write_register(0x07, 0x40);
-    lora_write_register(0x08, 0x00);
-
-    lora_write_register(0x1D, 0x72);
-    lora_write_register(0x1E, 0x74);
-    lora_write_register(0x26, 0x00);
-    lora_write_register(0x39, 0x34);
-
-    lora_write_register(0x1D, 0x72);
-    lora_write_register(0x1E, 0x74); 
-    lora_write_register(0x26, 0x00);
-
-    // Potencia de transmisión
-    lora_write_register(0x09, 0x8F); // Potencia supuestamente "ideal"
+    lora_apply_config();
+    lora_dump("init");
 }

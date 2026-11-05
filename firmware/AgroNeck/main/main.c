@@ -79,8 +79,15 @@ void init_mosfet_gpios() {
 }
 
 // Declara los estados de los MOSFETs
+// DIAGNÓSTICO: 0 = no tocar los MOSFETs (prueba de causa raíz)
+#define MOSFET_SWITCH_ENABLED 1
+
 void aplica_estado_mosfet() {
     ESP_LOGI("MOSFETS","Aplicando estado %d...", estado_mosfet);
+#if !MOSFET_SWITCH_ENABLED
+    ESP_LOGW("MOSFETS","[DIAG] Switch de MOSFETs DESHABILITADO: no se toca la alimentacion");
+    return;
+#endif
     if (estado_mosfet) { // Estado inicial: 2+3
         gpio_set_level(MOSFET2, 1);
         gpio_set_level(MOSFET3, 1);
@@ -329,6 +336,10 @@ void app_main(void)
         // Evalúa y aplica el cambio de batería
         ESP_LOGI("Energía","Analizando estado de switcheo.");
         hora_actual();
+
+        // DIAGNÓSTICO: ¿la radio sigue viva después de switchear los MOSFETs?
+        ESP_LOGW("LoRaDiag","Version 0x42 post-MOSFET: 0x%02X", lora_version());
+
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
     #endif
