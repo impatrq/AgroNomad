@@ -16,3 +16,9 @@
 #include "mpumlx.h"     // Librería para el sensor de movimiento MPU6050
 #include "lm35.h"       // Librería para el sensor de temperatura LM35
 
+// PARAMETROS RTOS
+#define SENSOR_PERIOD_MS   5000   // cada cuánto muestrear
+#define POWER_PERIOD_MS    60000  // cada cuánto revisar el temporizador del mosfet
+#define LORA_QUEUE_LEN     4      // paquetes en buffer
+
+static QueueHandle_t lora_queue = NULL;
