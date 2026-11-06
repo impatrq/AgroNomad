@@ -1,17 +1,11 @@
 // RTOS VERSION
 // DEPENDENCIAS
-#include <stdio.h>
 #include <sys/time.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "esp_log.h"    
-#include "esp_system.h"
-#include "esp_sleep.h"
-#include "esp_timer.h"               
-#include "esp_private/esp_clk.h"     
-#include "esp_adc/adc_oneshot.h" 
+#include "esp_log.h"  
+#include "esp_sleep.h"              
 #include "driver/gpio.h"
-#include "driver/rtc_io.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
