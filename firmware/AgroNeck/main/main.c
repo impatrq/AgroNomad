@@ -105,7 +105,6 @@ void aplica_estado_mosfet() {
 }
 
 // !! TEMPERATURA !!
-
 void read_lm35() {
     ESP_LOGI("read_lm35","Intentando leer LM35...");
     lm35_data_t data;
@@ -132,6 +131,23 @@ void internal_temp() {
     ESP_LOGI("Temp.Calc","Calculando temperatura interna...");
     temp_interna = (mlx_data.mlx_object_temp-15) + (mlx_data.mlx_object_temp-15 - (lm_amb_temp)) * H_COEFICIENTE;
     ESP_LOGI("Temp.Calc","Temperatura interna estimada: %.2f °C", temp_interna); 
+}
+
+// !! GPS !!
+void read_gps() {
+    ESP_LOGI("GPS","Intentando leer GPS...");
+    raw_nmea(&latitude, &longitude, &lat_hemisphere, &lon_hemisphere, &velocidad);
+    ESP_LOGI("GPS","Latitud: %f %c, Longitud: %f %c", latitude, lat_hemisphere, longitude, lon_hemisphere);
+    if (lat_hemisphere == 'S') {
+        lat_signed = -latitude;
+    } else {
+        lat_signed = latitude;
+    }
+    if (lon_hemisphere == 'W') {
+        lon_signed = -longitude;
+    } else {
+        lon_signed = longitude;
+    }
 }
 
 
