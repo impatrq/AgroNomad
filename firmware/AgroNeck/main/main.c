@@ -103,3 +103,27 @@ void aplica_estado_mosfet() {
     // gpio_hold_en(MOSFET4);
     // gpio_deep_sleep_hold_en();  
 }
+
+// !! TEMPERATURA !!
+
+void read_lm35() {
+    ESP_LOGI("read_lm35","Intentando leer LM35...");
+    lm35_data_t data;
+    esp_err_t ret = lm35_read(&data);
+    if (ret == ESP_OK) {
+        lm_amb_temp = data.lm_amb_temp;
+        ESP_LOGI("LM35","Temperatura: %.2f °C", lm_amb_temp);
+    } else {
+        ESP_LOGE("LM35","Error leyendo LM35: %s", esp_err_to_name(ret));
+    }
+}
+
+void read_mlx90614() {
+    ESP_LOGI("MLX90614","Intentando leer MLX90614...");
+    esp_err_t ret = mlx90614_read(&mlx_data, I2C_NUM_0);
+    if (ret == ESP_OK) {
+        ESP_LOGI("MLX90614","Temperatura objeto: %.2f °C", mlx_data.mlx_object_temp);
+    } else {
+        ESP_LOGE("MLX90614","Error leyendo datos: %s", esp_err_to_name(ret));
+    }
+}
