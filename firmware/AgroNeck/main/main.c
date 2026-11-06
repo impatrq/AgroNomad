@@ -59,25 +59,6 @@ float temp_interna;
 
 mlx90614_data_t mlx_data; 
 
-// Inicialización de Salida de MOSFETs
-void init_mosfet_gpios() {
-    gpio_deep_sleep_hold_dis();
-    
-    gpio_hold_dis(MOSFET1);
-    gpio_hold_dis(MOSFET2);
-    gpio_hold_dis(MOSFET3);
-    gpio_hold_dis(MOSFET4);
-
-    gpio_config_t io_config = {
-        .intr_type = GPIO_INTR_DISABLE,
-        .mode = GPIO_MODE_OUTPUT,
-        .pin_bit_mask = GPIO_MOSFET_MASK,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-    };
-    gpio_config(&io_config);
-}
-
 // Declara los estados de los MOSFETs
 // DIAGNÓSTICO: 0 = no tocar los MOSFETs (prueba de causa raíz)
 #define MOSFET_SWITCH_ENABLED 1
@@ -101,6 +82,27 @@ void aplica_estado_mosfet() {
         gpio_set_level(MOSFET1, 0);
         gpio_set_level(MOSFET4, 0);
     }
+}
+
+// Inicialización de Salida de MOSFETs
+void init_mosfet_gpios() {
+    gpio_deep_sleep_hold_dis();
+    
+    gpio_hold_dis(MOSFET1);
+    gpio_hold_dis(MOSFET2);
+    gpio_hold_dis(MOSFET3);
+    gpio_hold_dis(MOSFET4);
+
+    gpio_config_t io_config = {
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = GPIO_MOSFET_MASK,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+    };
+    gpio_config(&io_config);
+
+    aplica_estado_mosfet();
 }
 
 // Switcheo de MOSFETs (alternar entre baterías)
@@ -308,11 +310,14 @@ void app_main(void)
 
     //Función utilizada para probar el sistema sin Deep-Sleep
     ESP_LOGI("Inicializacion","Iniciando buses y perifericos.");
+    init_mosfet_gpios();
+    aplica_estado_mosfet();
+    vTaskDelay(pdMS_TO_TICKS(50));
+
     gps_starting();
     init_i2c();
     mpu6050_init(I2C_NUM_0);
     lm35_init();
-    init_mosfet_gpios();
     lora_init();
 
     while(1) {
