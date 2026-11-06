@@ -535,9 +535,6 @@ export async function upsertAnimalSnapshot(payload) {
       )
     }
 
-    //Update the animal's name in the animals table if it has changed
-    await client.query('UPDATE animals SET name = $1 WHERE id = $2', [name, animalId])
-
     // Insert the latest GPS position into the gps_positions table using a PostGIS POINT
     await client.query(
       `INSERT INTO gps_positions (animal_id, device_id, timestamp, location, temperature, speed, accuracy)
