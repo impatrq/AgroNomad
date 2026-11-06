@@ -1,4 +1,4 @@
-import { createYard, listYards, updateYardBoundary } from '../db/index.js'
+import { createYard, deleteYard, listYards, updateYardBoundary } from '../db/index.js'
 
 export async function getYards(_request, response) {
   response.json(await listYards())
@@ -91,4 +91,17 @@ export async function putYard(request, response) {
     return sendInvalidBoundary(response, result.invalidReason)
   }
   return response.json({ status: 'ok', yard: result.yard })
+}
+
+export async function removeYard(request, response) {
+  const id = Number(request.params.id)
+  if (!Number.isSafeInteger(id) || id < 1) {
+    return response.status(400).json({ status: 'error', message: 'ID de yard inválido.' })
+  }
+
+  const deleted = await deleteYard(id)
+  if (!deleted) {
+    return response.status(404).json({ status: 'error', message: 'No se encontró el yard.' })
+  }
+  return response.json({ status: 'ok', id })
 }

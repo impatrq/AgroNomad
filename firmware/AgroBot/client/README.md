@@ -31,7 +31,7 @@ El frontend obtiene los datos principales desde:
 
 - `GET /api/animals`: animales, coordenadas, nombres y temperaturas.
 - `GET /api/yards`: coordenadas de limites del campo/s definidos.
-- `POST /api/yards` y `PUT /api/yards/:id`: crean y actualizan los límites de los yards.
+- `POST /api/yards`, `PUT /api/yards/:id` y `DELETE /api/yards/:id`: crean, actualizan y eliminan yards.
 - `POST /api/animals/rename`: actualización del nombre de un animal.
 - `GET /api/status`: Devuelve el estado del servidor y la cantidad de animales.
 

@@ -197,13 +197,41 @@ async function ensureDefaultYards(client, userId) {
   }
 }
 
+async function seedInitialYards(client, userId) {
+  await client.query('BEGIN')
+  try {
+    const initialized = await client.query(
+      `INSERT INTO yard_initialization (user_id)
+       VALUES ($1)
+       ON CONFLICT (user_id) DO NOTHING
+       RETURNING user_id`,
+      [userId]
+    )
+
+    if (initialized.rowCount > 0) {
+      const existing = await client.query(
+        'SELECT 1 FROM yards WHERE user_id = $1 LIMIT 1',
+        [userId]
+      )
+      if (existing.rowCount === 0) {
+        await ensureDefaultYards(client, userId)
+      }
+    }
+
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  }
+}
+
 export async function listYards() {
   await initializeDatabase()
   const client = await getDb().connect()
 
   try {
     const userId = await getDemoUserId(client)
-    await ensureDefaultYards(client, userId)
+    await seedInitialYards(client, userId)
 
     const result = await client.query(
       `
@@ -302,6 +330,22 @@ export async function updateYardBoundary(id, name, positions) {
     )
     if (result.rowCount === 0) return null
     return { yard: { ...result.rows[0], positions } }
+  } finally {
+    client.release()
+  }
+}
+
+export async function deleteYard(id) {
+  await initializeDatabase()
+  const client = await getDb().connect()
+
+  try {
+    const userId = await getDemoUserId(client)
+    const result = await client.query(
+      'DELETE FROM yards WHERE id = $1 AND user_id = $2 RETURNING id',
+      [id, userId]
+    )
+    return result.rowCount > 0
   } finally {
     client.release()
   }

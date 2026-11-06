@@ -39,8 +39,10 @@ export default function YardsConfig({ onNavigate }) {
   const [draftName, setDraftName] = useState('')
   const [draftPositions, setDraftPositions] = useState([])
   const [drawing, setDrawing] = useState(false)
+  const [editingYardId, setEditingYardId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -81,6 +83,7 @@ export default function YardsConfig({ onNavigate }) {
 
   const cancelDrawing = () => {
     setDrawing(false)
+    setEditingYardId(null)
     setDraftPositions([])
     setDraftName('')
     setError('')
@@ -89,6 +92,7 @@ export default function YardsConfig({ onNavigate }) {
   const startEditing = () => {
     setDraftPositions(selectedYard?.positions || [])
     setDraftName(selectedYard?.name || '')
+    setEditingYardId(selectedYard?.id ?? null)
     setError('')
     setSuccess('')
     setDrawing(true)
@@ -96,6 +100,7 @@ export default function YardsConfig({ onNavigate }) {
 
   const startCreating = () => {
     setSelectedId('')
+    setEditingYardId(null)
     setDraftName('')
     setDraftPositions([])
     setError('')
@@ -114,9 +119,9 @@ export default function YardsConfig({ onNavigate }) {
     setError('')
     setSuccess('')
     try {
-      const isExistingYard = Boolean(selectedId)
+      const isExistingYard = editingYardId !== null
       const response = await fetch(
-        apiUrl(isExistingYard ? `/api/yards/${selectedId}` : '/api/yards'),
+        apiUrl(isExistingYard ? `/api/yards/${editingYardId}` : '/api/yards'),
         {
           method: isExistingYard ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -131,13 +136,16 @@ export default function YardsConfig({ onNavigate }) {
 
       setYards((currentYards) => {
         const nextYard = result.yard
-        const exists = currentYards.some((yard) => yard.id === nextYard.id)
+        const exists = currentYards.some((yard) => String(yard.id) === String(nextYard.id))
         return exists
-          ? currentYards.map((yard) => (yard.id === nextYard.id ? nextYard : yard))
+          ? currentYards.map((yard) =>
+              String(yard.id) === String(nextYard.id) ? nextYard : yard
+            )
           : [nextYard, ...currentYards]
       })
       setSelectedId(String(result.yard.id))
       setDrawing(false)
+      setEditingYardId(null)
       setDraftPositions([])
       setDraftName('')
       setSuccess('Límite del yard guardado correctamente.')
@@ -145,6 +153,32 @@ export default function YardsConfig({ onNavigate }) {
       setError(saveError.message || 'No se pudo guardar el límite.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const deleteYard = async () => {
+    if (!selectedYard || deleting) return
+    if (!window.confirm(`¿Eliminar definitivamente el yard "${selectedYard.name}"?`)) return
+
+    setDeleting(true)
+    setError('')
+    setSuccess('')
+    try {
+      const response = await fetch(apiUrl(`/api/yards/${selectedYard.id}`), {
+        method: 'DELETE',
+      })
+      if (!response.ok) throw new Error(await getErrorMessage(response))
+
+      const remainingYards = yards.filter(
+        (yard) => String(yard.id) !== String(selectedYard.id)
+      )
+      setYards(remainingYards)
+      setSelectedId(remainingYards[0] ? String(remainingYards[0].id) : '')
+      setSuccess(`Se eliminó el yard "${selectedYard.name}".`)
+    } catch (deleteError) {
+      setError(deleteError.message || 'No se pudo eliminar el yard.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -179,6 +213,14 @@ export default function YardsConfig({ onNavigate }) {
                   className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Editar límite
+                </button>
+                <button
+                  type="button"
+                  onClick={deleteYard}
+                  disabled={loading || !selectedYard || drawing || deleting}
+                  className="rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {deleting ? 'Eliminando…' : 'Eliminar yard'}
                 </button>
               </div>
             </div>
