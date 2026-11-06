@@ -133,3 +133,22 @@ void internal_temp() {
     temp_interna = (mlx_data.mlx_object_temp-15) + (mlx_data.mlx_object_temp-15 - (lm_amb_temp)) * H_COEFICIENTE;
     ESP_LOGI("Temp.Calc","Temperatura interna estimada: %.2f °C", temp_interna); 
 }
+
+
+/*
+FUNCIONAMIENTO RTOS
+
+static void nombre_funcion(void *pvParameters){
+funcion
+}
+
+void app_main(void)
+{
+    inits();
+
+    lora_queue = xQueueCreate(LORA_QUEUE_LEN, sizeof(lora_msg_t));
+    configASSERT(lora_queue);
+
+    xTaskCreate(nombre_funcion, "nombre", 4096, NULL, 5, NULL);    
+}
+*/
