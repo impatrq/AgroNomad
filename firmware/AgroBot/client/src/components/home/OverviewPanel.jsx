@@ -9,7 +9,11 @@ import {
   Thermometer,
   TrendingUp,
 } from "lucide-react";
-import { ANIMAL_REST_DELAY_MS, hasValidAnimalPosition } from "../../lib/utils";
+import {
+  ANIMAL_REST_DELAY_MS,
+  getLocalDateKey,
+  hasValidAnimalPosition,
+} from "../../lib/utils";
 
 function formatDuration(durationMs) {
   const totalSeconds = Math.floor(Math.max(durationMs, 0) / 1000);
@@ -232,11 +236,13 @@ function ActivityChart() {
 /*                              METRICS GRID                                  */
 /* -------------------------------------------------------------------------- */
 
-function MetricsGrid({ temperature, movementTime, restTime }) {
+function MetricsGrid({ temperature, movementTime, restTime, distanceTodayMeters }) {
   const metrics = [
     {
       label: "Distancia recorrida",
-      value: "12.4 km",
+      value: distanceTodayMeters == null
+        ? "—"
+        : `${(distanceTodayMeters / 1000).toFixed(2)} km`,
       icon: TrendingUp,
     },
     {
@@ -496,6 +502,13 @@ function OverviewCard({
 export default function OverviewPanel({ animals, selectedAnimal, loading, error }) {
   const now = useCurrentTime();
   const { movementTime, restTime } = getAnimalActivityTimers(selectedAnimal, now);
+  const hasCurrentPosition =
+    selectedAnimal && selectedAnimal.hasPosition !== false && hasValidAnimalPosition(selectedAnimal);
+  const distanceTodayMeters = hasCurrentPosition
+    ? now && selectedAnimal.dateKey !== getLocalDateKey(now)
+      ? 0
+      : selectedAnimal.distanceTodayMeters
+    : undefined;
 
   return (
     <div id="overview-section" className="h-full rounded-[28px] border border-green-200 bg-white p-6 shadow-sm">
@@ -521,6 +534,7 @@ export default function OverviewPanel({ animals, selectedAnimal, loading, error 
           temperature={selectedAnimal?.temp?.trim()}
           movementTime={movementTime}
           restTime={restTime}
+          distanceTodayMeters={distanceTodayMeters}
         />
       </div>
     </div>

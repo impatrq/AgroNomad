@@ -4,6 +4,7 @@ import { apiUrl, getAnimalsWsUrl} from '../lib/api'
 import {
   ANIMAL_MOVEMENT_THRESHOLD_METERS,
   ANIMAL_REST_DELAY_MS,
+  getLocalDateKey,
   hasValidAnimalPosition,
   normalizeBoundaryGroups,
 } from '../lib/utils'
@@ -21,22 +22,59 @@ function getDistanceMeters(lat1, lng1, lat2, lng2) {
   return 6_371_000 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
 }
 
+function getStoredDailyDistance(animalId, dateKey) {
+  try {
+    const stored = window.localStorage.getItem(`agronomad:distance:${animalId}:${dateKey}`)
+    const distance = Number(stored)
+    return Number.isFinite(distance) && distance >= 0 ? distance : 0
+  } catch (error) {
+    console.error('Could not read the daily animal distance:', error)
+    return 0
+  }
+}
+
+function storeDailyDistance(animalId, dateKey, distance) {
+  try {
+    window.localStorage.setItem(
+      `agronomad:distance:${animalId}:${dateKey}`,
+      String(distance),
+    )
+  } catch (error) {
+    console.error('Could not save the daily animal distance:', error)
+  }
+}
+
 function updateAnimalActivity(activityByAnimal, animal, timestamp) {
   if (!animal.hasPosition) {
     return { movementStartedAt: null, lastMovementAt: null, quietSince: null }
   }
 
+  const dateKey = getLocalDateKey(timestamp)
   const previous = activityByAnimal.get(animal.id)
   if (!previous) {
     const initialActivity = {
       anchorLat: animal.lat,
       anchorLng: animal.lng,
+      dateKey,
+      distanceTodayMeters: getStoredDailyDistance(animal.id, dateKey),
       quietSince: timestamp,
       movementStartedAt: null,
       lastMovementAt: null,
     }
     activityByAnimal.set(animal.id, initialActivity)
     return initialActivity
+  }
+
+  if (previous.dateKey !== dateKey) {
+    const updatedActivity = {
+      ...previous,
+      anchorLat: animal.lat,
+      anchorLng: animal.lng,
+      dateKey,
+      distanceTodayMeters: getStoredDailyDistance(animal.id, dateKey),
+    }
+    activityByAnimal.set(animal.id, updatedActivity)
+    return updatedActivity
   }
 
   const movedDistance = getDistanceMeters(
@@ -52,11 +90,14 @@ function updateAnimalActivity(activityByAnimal, animal, timestamp) {
     const updatedActivity = {
       anchorLat: animal.lat,
       anchorLng: animal.lng,
+      dateKey,
+      distanceTodayMeters: previous.distanceTodayMeters + movedDistance,
       quietSince: null,
       movementStartedAt: movementContinues ? previous.movementStartedAt : timestamp,
       lastMovementAt: timestamp,
     }
     activityByAnimal.set(animal.id, updatedActivity)
+    storeDailyDistance(animal.id, dateKey, updatedActivity.distanceTodayMeters)
     return updatedActivity
   }
 

@@ -1,6 +1,13 @@
 export const ANIMAL_MOVEMENT_THRESHOLD_METERS = 5
 export const ANIMAL_REST_DELAY_MS = 15_000
 
+export function getLocalDateKey(timestamp) {
+  const date = new Date(timestamp)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
 export function hasValidAnimalPosition(animal) {
   return Number.isFinite(animal?.lat) && Number.isFinite(animal?.lng) &&
     animal.lat !== 0 && animal.lng !== 0
