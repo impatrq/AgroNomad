@@ -7,6 +7,7 @@ export default function MapSection({
   yardBoundaries,
   mapPosition,
   animalsWithoutPosition,
+  historyPositions,
   loading,
   error,
 }) {
@@ -48,7 +49,7 @@ export default function MapSection({
       {animalsWithoutPosition.length > 0 && (
         <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Datos recibidos sin posición para {animalsWithoutPosition.map((animal) => animal.id).join(', ')}.
-          Se mostrarán en el mapa cuando latitud y longitud sean distintas de cero.
+          Los marcadores grises muestran la última posición válida registrada, si existe.
         </p>
       )}
 
@@ -58,6 +59,7 @@ export default function MapSection({
         onSelectAnimal={onSelectAnimal}
         yardBoundaries={yardBoundaries}
         mapPosition={mapPosition}
+        historyPositions={historyPositions}
       />
     </div>
   )

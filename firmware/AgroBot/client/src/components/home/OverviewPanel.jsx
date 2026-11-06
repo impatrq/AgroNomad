@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -8,6 +9,84 @@ import {
   Thermometer,
   TrendingUp,
 } from "lucide-react";
+import {
+  ANIMAL_REST_DELAY_MS,
+  getLocalDateKey,
+  hasValidAnimalPosition,
+} from "../../lib/utils";
+
+function formatDuration(durationMs) {
+  const totalSeconds = Math.floor(Math.max(durationMs, 0) / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${hours}h ${minutes}m ${seconds}s`;
+}
+
+function getDurationSinceMidnight(start, end, dayStart, now) {
+  const clippedStart = Math.max(start, dayStart);
+  const clippedEnd = Math.min(end, now);
+  return Math.max(clippedEnd - clippedStart, 0);
+}
+
+function getAnimalActivityTimers(animal, now) {
+  const zero = "0h 0m 0s";
+  if (!animal) {
+    return { movementTime: "—", restTime: "—" };
+  }
+  const hasActivity = animal.quietSince != null ||
+    animal.movementStartedAt != null ||
+    animal.lastMovementAt != null;
+  if (!hasValidAnimalPosition(animal) && !hasActivity) {
+    return { movementTime: "—", restTime: "—" };
+  }
+
+  const dayStart = new Date(now);
+  dayStart.setHours(0, 0, 0, 0);
+
+  if (animal.lastMovementAt == null) {
+    if (animal.quietSince == null) {
+      return { movementTime: zero, restTime: zero };
+    }
+
+    const restConfirmedAt = animal.quietSince + ANIMAL_REST_DELAY_MS;
+    return {
+      movementTime: zero,
+      restTime: now >= restConfirmedAt
+        ? formatDuration(getDurationSinceMidnight(animal.quietSince, now, dayStart.getTime(), now))
+        : zero,
+    };
+  }
+
+  const restConfirmedAt = animal.lastMovementAt + ANIMAL_REST_DELAY_MS;
+  const isResting = now >= restConfirmedAt;
+  const movementEnd = isResting ? animal.lastMovementAt : now;
+  const movementDuration = getDurationSinceMidnight(
+    animal.movementStartedAt,
+    movementEnd,
+    dayStart.getTime(),
+    now,
+  );
+  const restDuration = isResting
+    ? getDurationSinceMidnight(animal.lastMovementAt, now, dayStart.getTime(), now)
+    : 0;
+
+  return {
+    movementTime: formatDuration(movementDuration),
+    restTime: formatDuration(restDuration),
+  };
+}
+
+function useCurrentTime() {
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  return now;
+}
 
 /* -------------------------------------------------------------------------- */
 /*                                  DATA                                      */
@@ -27,29 +106,6 @@ const activityData = [
   { time: "20", value: 52 },
   { time: "22", value: 34 },
   { time: "24", value: 24 },
-];
-
-const metrics = [
-  {
-    label: "Distancia recorrida",
-    value: "12.4 km",
-    icon: TrendingUp,
-  },
-  {
-    label: "Tiempo en movimiento",
-    value: "3h 42m",
-    icon: Activity,
-  },
-  {
-    label: "Tiempo de reposo",
-    value: "8h 15m",
-    icon: Clock3,
-  },
-  {
-    label: "Temperatura promedio",
-    value: "38.4 °C",
-    icon: Thermometer,
-  },
 ];
 
 const recentActivity = [
@@ -186,7 +242,32 @@ function ActivityChart() {
 /*                              METRICS GRID                                  */
 /* -------------------------------------------------------------------------- */
 
-function MetricsGrid() {
+function MetricsGrid({ temperature, movementTime, restTime, distanceTodayMeters }) {
+  const metrics = [
+    {
+      label: "Distancia recorrida",
+      value: distanceTodayMeters == null
+        ? "—"
+        : `${(distanceTodayMeters / 1000).toFixed(2)} km`,
+      icon: TrendingUp,
+    },
+    {
+      label: "Tiempo en movimiento",
+      value: movementTime,
+      icon: Activity,
+    },
+    {
+      label: "Tiempo de reposo",
+      value: restTime,
+      icon: Clock3,
+    },
+    {
+      label: "Temperatura Actual",
+      value: temperature ? `${temperature} °C` : "—",
+      icon: Thermometer,
+    },
+  ];
+
   return (
     <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
       {metrics.map(({ label, value, icon: Icon }) => (
@@ -424,7 +505,15 @@ function OverviewCard({
 
 
 
-export default function OverviewPanel({ animals, loading, error }) {
+export default function OverviewPanel({ animals, selectedAnimal, loading, error }) {
+  const now = useCurrentTime();
+  const { movementTime, restTime } = getAnimalActivityTimers(selectedAnimal, now);
+  const distanceTodayMeters = selectedAnimal && Number.isFinite(selectedAnimal.distanceTodayMeters)
+    ? now && selectedAnimal.dateKey !== getLocalDateKey(now)
+      ? 0
+      : selectedAnimal.distanceTodayMeters
+    : undefined;
+
   return (
     <div id="overview-section" className="h-full rounded-[28px] border border-green-200 bg-white p-6 shadow-sm">
       <h3 className="text-xl font-semibold">Visión general</h3>
@@ -445,7 +534,12 @@ export default function OverviewPanel({ animals, loading, error }) {
 
       {/* Metrics */}
       <div className="mb-5">
-        <MetricsGrid />
+        <MetricsGrid
+          temperature={selectedAnimal?.temp?.trim()}
+          movementTime={movementTime}
+          restTime={restTime}
+          distanceTodayMeters={distanceTodayMeters}
+        />
       </div>
     </div>
   )

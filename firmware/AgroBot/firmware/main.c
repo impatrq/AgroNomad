@@ -6,26 +6,15 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <sys/socket.h>
-#include <time.h>
 
-#include "neo6m.h"
 #include "lora.h"
-
-#define SERIAL_PORT "/dev/ttyS0"//GPS
 
 #define SERVER_IP "127.0.0.1"
 #define SERVER_PORT 4001
 #define SEND_INTERVAL_SECONDS 5
 #define COLLAR_QUEUE_CAPACITY 32
 
-//GPS NEO6M variables
-int gps_fd = -1; // GPS serial port file descriptor
-double temperature;
-
 typedef struct {
-    double latitude;
-    double longitude;
-    int gps_ready;
     agro_neck_payload_t collar_queue[COLLAR_QUEUE_CAPACITY];
     size_t collar_queue_head;
     size_t collar_queue_count;
@@ -85,46 +74,6 @@ static int send_telemetry(int sock, const char *source, const char *payload)
 
     printf("[Backend] Sent %s telemetry: %s", source, payload);
     return 0;
-}
-
-static uint8_t gps_listening(double *latitude, double *longitude)
-{
-    char lat_hemisphere;
-    char lon_hemisphere;
-    double speed_kmh = 0.0;
-
-    if (neo6m_read_data(gps_fd, latitude, longitude,
-                        &lat_hemisphere, &lon_hemisphere, &speed_kmh) == 0) {
-        //printf("Received GPS data:\n");
-        //printf("Latitude: %f %c\n", *latitude, lat_hemisphere);
-        //printf("Longitude: %f %c\n", *longitude, lon_hemisphere);
-        return 0;
-    }
-    printf("No GPS data received within the timeout period.\n");
-    return 1;
-}
-
-static void *gps_worker(void *argument)
-{
-    (void)argument;
-
-    for (;;) {
-        double latitude = 0.0;
-        double longitude = 0.0;
-
-        if (gps_listening(&latitude, &longitude) == 0) {
-            pthread_mutex_lock(&telemetry_mutex);
-            telemetry_state.latitude = latitude;
-            telemetry_state.longitude = longitude;
-            telemetry_state.gps_ready = 1;
-            pthread_cond_signal(&telemetry_condition);
-            pthread_mutex_unlock(&telemetry_mutex);
-        } else {
-            sleep(1);
-        }
-    }
-
-    return NULL;
 }
 
 static void *lora_worker(void *argument)
@@ -193,20 +142,6 @@ int main(void)
         };
         
     */
-    
-    /*
-    ******************************************************************************
-                            GPS NEO6M UART interface
-    ******************************************************************************
-    */
-
-    
-    gps_fd = neo6m_init(SERIAL_PORT); // Initialize the UART interface for the GPS module
-    if (gps_fd < 0) {
-        printf("Failed to initialize GPS module\n");
-        return 1;
-    }
-
 
     /*
 
@@ -217,33 +152,19 @@ int main(void)
     */
 
     if (lora_initialize() < 0) {
-        neo6m_close_conn(gps_fd);
         close_receiver();
         return EXIT_FAILURE;
     }
 
-    pthread_t gps_thread;
     pthread_t lora_thread;
-    int thread_result = pthread_create(&gps_thread, NULL, gps_worker, NULL);
-    if (thread_result != 0) {
-        fprintf(stderr, "Could not start GPS worker: %s\n", strerror(thread_result));
-        neo6m_close_conn(gps_fd);
-        close_receiver();
-        return EXIT_FAILURE;
-    }
-
-    thread_result = pthread_create(&lora_thread, NULL, lora_worker, NULL);
+    int thread_result = pthread_create(&lora_thread, NULL, lora_worker, NULL);
     if (thread_result != 0) {
         fprintf(stderr, "Could not start LoRa worker: %s\n", strerror(thread_result));
-        pthread_cancel(gps_thread);
-        pthread_join(gps_thread, NULL);
-        neo6m_close_conn(gps_fd);
         close_receiver();
         return EXIT_FAILURE;
     }
 
     int sock = -1;
-    time_t next_rp_send = time(NULL);
 
     for (;;)
     {   
@@ -260,75 +181,35 @@ int main(void)
             }
         }
         agro_neck_payload_t collar_data;
-        double latitude = 0.0;
-        double longitude = 0.0;
-        int send_collar = 0;
 
         pthread_mutex_lock(&telemetry_mutex);
-        while (telemetry_state.collar_queue_count == 0 &&
-               (!telemetry_state.gps_ready || time(NULL) < next_rp_send)) {
-            if (telemetry_state.gps_ready) {
-                struct timespec deadline = { .tv_sec = next_rp_send, .tv_nsec = 0 };
-                pthread_cond_timedwait(&telemetry_condition, &telemetry_mutex, &deadline);
-            } else {
-                pthread_cond_wait(&telemetry_condition, &telemetry_mutex);
-            }
+        while (telemetry_state.collar_queue_count == 0) {
+            pthread_cond_wait(&telemetry_condition, &telemetry_mutex);
         }
-
-        if (telemetry_state.collar_queue_count > 0) {
-            collar_data = telemetry_state.collar_queue[telemetry_state.collar_queue_head];
-            send_collar = 1;
-        } else {
-            latitude = telemetry_state.latitude;
-            longitude = telemetry_state.longitude;
-        }
+        collar_data = telemetry_state.collar_queue[telemetry_state.collar_queue_head];
         pthread_mutex_unlock(&telemetry_mutex);
 
         char payload[192];
-        if (send_collar) {
-            snprintf(payload, sizeof(payload),
-                     "{\"ID\":\"COLLAR-%02u\",\"FIRMWARE_VERS\":\"1.0\",\"HARDWARE_VERS\":\"1.0\",\"LAT\":%.6f,\"LONG\":%.6f,\"TEMP\":\"%.2f\"}\n",
-                     (unsigned)collar_data.id_collar,
-                     collar_data.latitud / 1000000.0,
-                     collar_data.longitud / 1000000.0,
-                     collar_data.temperatura);
-
-            if (send_telemetry(sock, "collar", payload) < 0) {
-                close(sock);
-                sock = -1;
-                continue;
-            }
-
-            pthread_mutex_lock(&telemetry_mutex);
-            telemetry_state.collar_queue_head =
-                (telemetry_state.collar_queue_head + 1) % COLLAR_QUEUE_CAPACITY;
-            telemetry_state.collar_queue_count--;
-            pthread_mutex_unlock(&telemetry_mutex);
-            continue;
-        }
-
         snprintf(payload, sizeof(payload),
-                 "{\"ID\":\"RP\",\"FIRMWARE_VERS\":\"1.0\",\"HARDWARE_VERS\":\"1.0\",\"LAT\":%.6f,\"LONG\":%.6f,\"TEMP\":\"%.2f\"}\n",
-                 latitude,
-                 longitude,
-                 temperature);
+                 "{\"ID\":\"COLLAR-%02u\",\"FIRMWARE_VERS\":\"1.0\",\"HARDWARE_VERS\":\"1.0\",\"LAT\":%.6f,\"LONG\":%.6f,\"TEMP\":\"%.2f\"}\n",
+                 (unsigned)collar_data.id_collar,
+                 collar_data.latitud / 1000000.0,
+                 collar_data.longitud / 1000000.0,
+                 collar_data.temperatura);
 
-        if (send_telemetry(sock, "RP", payload) < 0) {
+        if (send_telemetry(sock, "collar", payload) < 0) {
             close(sock);
             sock = -1;
             continue;
         }
 
-        next_rp_send = time(NULL) + SEND_INTERVAL_SECONDS;
+        pthread_mutex_lock(&telemetry_mutex);
+        telemetry_state.collar_queue_head =
+            (telemetry_state.collar_queue_head + 1) % COLLAR_QUEUE_CAPACITY;
+        telemetry_state.collar_queue_count--;
+        pthread_mutex_unlock(&telemetry_mutex);
     }
 
     close(sock);
     return EXIT_SUCCESS;
 }
-
-/*
-static const char *payloads[] = {
-        "{\"ID\":\"RP\",\"FIRMWARE_VERS\":\"1.0\",\"HARDWARE_VERS\":\"1.0\",\"LAT\":-34.707652,\"LONG\":-58.242300,\"TEMP\":\"38.4\"}\n",
-        "{\"ID\":\"COLLAR-01\",\"FIRMWARE_VERS\":\"1.0\",\"HARDWARE_VERS\":\"1.0\",\"LAT\":-34.708100,\"LONG\":-58.243000,\"TEMP\":\"37.9\"}\n",
-    };
-*/

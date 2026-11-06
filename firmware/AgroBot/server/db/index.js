@@ -197,13 +197,41 @@ async function ensureDefaultYards(client, userId) {
   }
 }
 
+async function seedInitialYards(client, userId) {
+  await client.query('BEGIN')
+  try {
+    const initialized = await client.query(
+      `INSERT INTO yard_initialization (user_id)
+       VALUES ($1)
+       ON CONFLICT (user_id) DO NOTHING
+       RETURNING user_id`,
+      [userId]
+    )
+
+    if (initialized.rowCount > 0) {
+      const existing = await client.query(
+        'SELECT 1 FROM yards WHERE user_id = $1 LIMIT 1',
+        [userId]
+      )
+      if (existing.rowCount === 0) {
+        await ensureDefaultYards(client, userId)
+      }
+    }
+
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  }
+}
+
 export async function listYards() {
   await initializeDatabase()
   const client = await getDb().connect()
 
   try {
     const userId = await getDemoUserId(client)
-    await ensureDefaultYards(client, userId)
+    await seedInitialYards(client, userId)
 
     const result = await client.query(
       `
@@ -221,10 +249,17 @@ export async function listYards() {
     )
 
     const limitsField = {}
+    const yards = []
 
     for (const yard of result.rows) {
       const parsedBoundary =
         typeof yard.boundary === 'string' ? JSON.parse(yard.boundary) : yard.boundary
+
+      const ring = parsedBoundary?.coordinates?.[0]
+      const positions = Array.isArray(ring)
+        ? ring.slice(0, -1).map(([lng, lat]) => [Number(lat), Number(lng)])
+        : []
+      yards.push({ id: yard.id, name: yard.name, positions })
 
       const mapped = polygonToLimitMap(yard.name, parsedBoundary)
       if (mapped) {
@@ -232,7 +267,85 @@ export async function listYards() {
       }
     }
 
-    return limitsField
+    return { yards, limitsField }
+  } finally {
+    client.release()
+  }
+}
+
+function positionsToWkt(positions) {
+  const coordinates = positions.map(([lat, lng]) => `${lng} ${lat}`)
+  coordinates.push(coordinates[0])
+  return `POLYGON((${coordinates.join(', ')}))`
+}
+
+export async function createYard(name, positions) {
+  await initializeDatabase()
+  const client = await getDb().connect()
+
+  try {
+    const userId = await getDemoUserId(client)
+    const polygon = positionsToWkt(positions)
+    const validity = await client.query(
+      'SELECT ST_IsValidReason(ST_GeomFromText($1, 4326)) AS reason',
+      [polygon]
+    )
+    if (validity.rows[0].reason !== 'Valid Geometry') {
+      return { invalidReason: validity.rows[0].reason }
+    }
+
+    const result = await client.query(
+      `INSERT INTO yards (user_id, name, boundary)
+       VALUES ($1, $2, ST_GeomFromText($3, 4326))
+       RETURNING id, name`,
+      [userId, name, polygon]
+    )
+    return { yard: { ...result.rows[0], positions } }
+  } finally {
+    client.release()
+  }
+}
+
+export async function updateYardBoundary(id, name, positions) {
+  await initializeDatabase()
+  const client = await getDb().connect()
+
+  try {
+    const userId = await getDemoUserId(client)
+    const polygon = positionsToWkt(positions)
+    const validity = await client.query(
+      'SELECT ST_IsValidReason(ST_GeomFromText($1, 4326)) AS reason',
+      [polygon]
+    )
+    if (validity.rows[0].reason !== 'Valid Geometry') {
+      return { invalidReason: validity.rows[0].reason }
+    }
+
+    const result = await client.query(
+      `UPDATE yards
+       SET name = $1, boundary = ST_GeomFromText($2, 4326)
+       WHERE id = $3 AND user_id = $4
+       RETURNING id, name`,
+      [name, polygon, id, userId]
+    )
+    if (result.rowCount === 0) return null
+    return { yard: { ...result.rows[0], positions } }
+  } finally {
+    client.release()
+  }
+}
+
+export async function deleteYard(id) {
+  await initializeDatabase()
+  const client = await getDb().connect()
+
+  try {
+    const userId = await getDemoUserId(client)
+    const result = await client.query(
+      'DELETE FROM yards WHERE id = $1 AND user_id = $2 RETURNING id',
+      [id, userId]
+    )
+    return result.rowCount > 0
   } finally {
     client.release()
   }
@@ -256,6 +369,14 @@ export async function listAnimals() {
        LEFT JOIN animal_devices ad ON ad.animal_id = a.id AND ad.unassigned_at IS NULL
        LEFT JOIN devices d ON d.id = ad.device_id
        WHERE a.user_id = $1
+         AND NOT EXISTS (
+           SELECT 1
+           FROM animal_devices rp_ad
+           JOIN devices rp_d ON rp_d.id = rp_ad.device_id
+           WHERE rp_ad.animal_id = a.id
+             AND rp_ad.unassigned_at IS NULL
+             AND UPPER(BTRIM(rp_d.device_uid)) = 'RP'
+         )
        ORDER BY a.id`,
       [userId]
     )
@@ -263,13 +384,49 @@ export async function listAnimals() {
     const animals = []
     for (const row of result.rows) {
       const latestGpsResult = await client.query(
-        `SELECT ST_Y(location::geometry) AS latitude,
-                ST_X(location::geometry) AS longitude,
-                temperature
-         FROM gps_positions
-         WHERE animal_id = $1
-         ORDER BY timestamp DESC
-         LIMIT 1`,
+        `SELECT ST_Y(
+                  COALESCE(
+                    CASE
+                      WHEN ST_Y(latest.location::geometry) <> 0
+                       AND ST_X(latest.location::geometry) <> 0
+                      THEN latest.location
+                    END,
+                    last_valid.location
+                  )::geometry
+                ) AS latitude,
+                ST_X(
+                  COALESCE(
+                    CASE
+                      WHEN ST_Y(latest.location::geometry) <> 0
+                       AND ST_X(latest.location::geometry) <> 0
+                      THEN latest.location
+                    END,
+                    last_valid.location
+                  )::geometry
+                ) AS longitude,
+                COALESCE(
+                  ST_Y(latest.location::geometry) <> 0
+                  AND ST_X(latest.location::geometry) <> 0,
+                  FALSE
+                ) AS has_position,
+                latest.temperature
+         FROM (
+           SELECT location, temperature
+           FROM gps_positions
+           WHERE animal_id = $1
+           ORDER BY timestamp DESC, id DESC
+           LIMIT 1
+         ) latest
+         LEFT JOIN LATERAL (
+           SELECT location
+           FROM gps_positions
+           WHERE animal_id = $1
+             AND location IS NOT NULL
+             AND ST_Y(location::geometry) <> 0
+             AND ST_X(location::geometry) <> 0
+           ORDER BY timestamp DESC, id DESC
+           LIMIT 1
+         ) last_valid ON TRUE`,
         [row.id]
       )
       const latest = latestGpsResult.rows[0] || {}
@@ -279,6 +436,7 @@ export async function listAnimals() {
         name: row.name,
         lat: Number(latest.latitude ?? 0),
         lng: Number(latest.longitude ?? 0),
+        hasPosition: latest.has_position === true,
         temp: String(latest.temperature ?? ''),
       })
     }
@@ -322,7 +480,7 @@ export async function upsertAnimalSnapshot(payload) {
     const lng = Number(payload.LONG ?? payload.long ?? payload.longitude ?? payload.Longitude)
     const temp = Number(payload.TEMP ?? payload.temp ?? payload.temperature ?? payload.Temperature ?? 0)
 
-    if (!id || Number.isNaN(lat) || Number.isNaN(lng)) {
+    if (!id || id.toUpperCase() === 'RP' || Number.isNaN(lat) || Number.isNaN(lng)) {
       return null
     }
     
@@ -377,9 +535,6 @@ export async function upsertAnimalSnapshot(payload) {
       )
     }
 
-    //Update the animal's name in the animals table if it has changed
-    await client.query('UPDATE animals SET name = $1 WHERE id = $2', [name, animalId])
-
     // Insert the latest GPS position into the gps_positions table using a PostGIS POINT
     await client.query(
       `INSERT INTO gps_positions (animal_id, device_id, timestamp, location, temperature, speed, accuracy)
@@ -415,9 +570,10 @@ export async function renameAnimal(id, newName) {
        FROM animals a
        LEFT JOIN animal_devices ad ON ad.animal_id = a.id AND ad.unassigned_at IS NULL
        LEFT JOIN devices d ON d.id = ad.device_id
-       WHERE a.user_id = $1 AND (a.id = $2 OR d.device_uid = $3)
+       WHERE a.user_id = $1 AND (a.id::text = $2 OR d.device_uid = $2)
+       ORDER BY CASE WHEN d.device_uid = $2 THEN 0 ELSE 1 END
        LIMIT 1`,
-      [userId, Number(id), String(id)]
+      [userId, String(id)]
     )
 
     if (animalResult.rows.length === 0) {
@@ -453,6 +609,55 @@ export async function renameAnimal(id, newName) {
 
 
 
+
+/*
+
+  listAnimalHistory(id, limit) -> Retrieves the most recent GPS positions for an animal
+  and returns them ordered from oldest to newest, so the client can draw the traveled path.
+  The animal can be identified by its internal id or by its device UID.
+
+*/
+
+export async function listAnimalHistory(id, limit = 10) {
+  await initializeDatabase()
+  const client = await getDb().connect()
+
+  try {
+    const userId = await getDemoUserId(client)
+    const animalResult = await client.query(
+      `SELECT a.id
+       FROM animals a
+       LEFT JOIN animal_devices ad ON ad.animal_id = a.id AND ad.unassigned_at IS NULL
+       LEFT JOIN devices d ON d.id = ad.device_id
+       WHERE a.user_id = $1 AND (a.id::text = $2 OR d.device_uid = $2)
+       LIMIT 1`,
+      [userId, String(id)]
+    )
+
+    if (animalResult.rows.length === 0) {
+      return null
+    }
+
+    const historyResult = await client.query(
+      `SELECT ST_Y(location::geometry) AS latitude,
+              ST_X(location::geometry) AS longitude,
+              timestamp
+       FROM gps_positions
+       WHERE animal_id = $1 AND location IS NOT NULL
+       ORDER BY timestamp DESC, id DESC
+       LIMIT $2`,
+      [animalResult.rows[0].id, limit]
+    )
+
+    return historyResult.rows.reverse().map((row) => ({
+      lat: Number(row.latitude),
+      lng: Number(row.longitude),
+      timestamp: row.timestamp,
+    }))
+  } finally {
+    client.release()
+  }
+}
 
 /*
   -----------------------------------------------------------------------------

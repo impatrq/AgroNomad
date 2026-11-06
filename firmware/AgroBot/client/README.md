@@ -9,6 +9,7 @@ El frontend de AgroNomad es una aplicación web desarrollada con React, Vite, Ta
 - Actualiza los datos de los animales automáticamente cada 15 segundos.
 - Permite cambiar el nombre del animal seleccionado mediante un formulario.
 - Muestra estados de carga y mensajes de error cuando no se pueden obtener los datos.
+- Permite crear yards y configurar sus límites dibujando polígonos sobre el mapa.
 - Incluye navegación entre el mapa, el inicio de sesión y la configuración del usuario.
 
 ## Pantallas y componentes
@@ -19,6 +20,7 @@ El frontend de AgroNomad es una aplicación web desarrollada con React, Vite, Ta
 | `src/pages/Home.jsx` | Página principal con mapa, resumen de animales y detalles del animal seleccionado. |
 | `src/pages/Login.jsx` | Formulario de inicio de sesión conectado a la API. |
 | `src/pages/UserConfig.jsx` | Muestra información del usuario, del campo y del estado general del predio. |
+| `src/pages/YardsConfig.jsx` | Permite crear yards y dibujar o editar sus límites geográficos. |
 | `src/hooks/useAnimalDashboard.js` | Carga, normaliza y actualiza los datos de animales y límites del campo. |
 | `src/components/home/` | Contiene el mapa, la navegación, el resumen y los detalles de los animales. |
 | `src/components/RenameAnimalModal.jsx` | Formulario para cambiar el nombre de un animal. |
@@ -29,6 +31,7 @@ El frontend obtiene los datos principales desde:
 
 - `GET /api/animals`: animales, coordenadas, nombres y temperaturas.
 - `GET /api/yards`: coordenadas de limites del campo/s definidos.
+- `POST /api/yards`, `PUT /api/yards/:id` y `DELETE /api/yards/:id`: crean, actualizan y eliminan yards.
 - `POST /api/animals/rename`: actualización del nombre de un animal.
 - `GET /api/status`: Devuelve el estado del servidor y la cantidad de animales.
 
@@ -59,4 +62,3 @@ The browser must be able to reach the API. Choose one of these configurations:
 
 Do not use `localhost` for `VITE_API_BASE_URL` unless the browser and API run
 on the same machine.
-

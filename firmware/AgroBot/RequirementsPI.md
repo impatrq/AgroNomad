@@ -1,12 +1,17 @@
 # Step by Step of how to setup Agronomad's WebApp in Raspberry Pi Zero 2W
 
 1 - Install 64bit Pi os lite in Raspberry.
+
 2 - Install Node.js(with prebuilt) and nvm(vers. >= 24).
+
 3 - Install PostgreSql and Postgis.
+
 4 - Install nginx
 
 5 - Clone repository.
+
 6 - Install modules with 'npm i'
+
 7 - Build /client with 'npm run build'
 
 8 - Create Agronomad DB and install postgis extension(as superuser).

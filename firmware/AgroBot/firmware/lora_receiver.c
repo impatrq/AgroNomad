@@ -13,7 +13,11 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
+
+//Library to resolve hostnames to IP addresses.
+#include <netdb.h>
 
 #define SPI_DEVICE "/dev/spidev0.0"
 #define GPIO_CHIP_DEVICE "/dev/gpiochip0"
@@ -21,8 +25,14 @@
 #define GPIO_LORA_DIO0 24
 #define SPI_SPEED_HZ 5000000U
 #define LORA_PACKET_SIZE 14
-#define BACKEND_IP "127.0.0.1"
-#define BACKEND_PORT 4001
+/* Backends that receive every reading (AgroBot, MooPing...): TELEMETRY_TARGETS="host:port,host:port". */
+#define DEFAULT_TARGETS "127.0.0.1:4001"
+#define MAX_TARGETS 4
+/* A backend that is off must not block the radio loop (connect() alone can hang ~2 min). */
+#define BACKEND_TIMEOUT_MS 2000
+#define GATEWAY_ID_MAX 32
+#define TELEMETRY_KEY_MAX 64
+#define JSON_MAX 384
 
 typedef struct __attribute__((packed)) {
     uint16_t id_collar;
@@ -33,6 +43,21 @@ typedef struct __attribute__((packed)) {
 
 _Static_assert(sizeof(agro_neck_payload_t) == LORA_PACKET_SIZE,
                "AgroNeck LoRa payload layout changed");
+
+typedef struct {
+    char label[64];
+    struct sockaddr_in address;
+} telemetry_target_t;
+
+typedef struct {
+    int rssi_dbm;
+    double snr_db;
+} radio_quality_t;
+
+static telemetry_target_t targets[MAX_TARGETS];
+static size_t target_count = 0;
+static char gateway_id[GATEWAY_ID_MAX + 1] = "";
+static char telemetry_key[TELEMETRY_KEY_MAX + 1] = "";
 
 static int spi_fd = -1;
 static int reset_line_fd = -1;
@@ -264,7 +289,145 @@ static int send_all(int sock, const char *message)
     return 0;
 }
 
-static int forward_to_backend(const agro_neck_payload_t *payload)
+static int add_target(char *spec)
+{
+    while (*spec == ' ') spec++;
+    char *end = spec + strlen(spec);
+    while (end > spec && end[-1] == ' ') *--end = '\0';
+
+    char *colon = strrchr(spec, ':');
+    if (colon == NULL || colon == spec) {
+        fprintf(stderr, "Invalid telemetry target '%s' (expected host:port)\n", spec);
+        return -1;
+    }
+    *colon = '\0';
+    char *port_end = NULL;
+    long port = strtol(colon + 1, &port_end, 10);
+    if (*port_end != '\0' || port < 1 || port > 65535) {
+        fprintf(stderr, "Invalid port in telemetry target '%s:%s'\n", spec, colon + 1);
+        return -1;
+    }
+    if (target_count == MAX_TARGETS) {
+        fprintf(stderr, "Too many telemetry targets (max %d)\n", MAX_TARGETS);
+        return -1;
+    }
+
+    telemetry_target_t *target = &targets[target_count];
+    memset(target, 0, sizeof(*target));
+    target->address.sin_family = AF_INET;
+    target->address.sin_port = htons((uint16_t)port);
+
+    /* Fast path: a numeric IPv4 address needs no resolver call. */
+    if (inet_pton(AF_INET, spec, &target->address.sin_addr) != 1) {
+        /* Not a literal IP — resolve it via the NSS stack (supports mDNS / .local). */
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family   = AF_INET;      /* rest of the code uses AF_INET sockets */
+        hints.ai_socktype = SOCK_STREAM;
+
+        struct addrinfo *resolved = NULL;
+        int rc = getaddrinfo(spec, NULL, &hints, &resolved);
+        if (rc != 0) {
+            fprintf(stderr, "Cannot resolve telemetry target '%s': %s\n",
+                    spec, gai_strerror(rc));
+            return -1;
+        }
+
+        struct sockaddr_in *sin = (struct sockaddr_in *)resolved->ai_addr;
+        target->address.sin_addr = sin->sin_addr;
+        freeaddrinfo(resolved);
+    }
+
+    snprintf(target->label, sizeof(target->label), "%s:%ld", spec, port);
+    target_count++;
+    return 0;
+}
+
+static int load_config(void)
+{
+    const char *spec = getenv("TELEMETRY_TARGETS");
+    if (spec == NULL || *spec == '\0') spec = DEFAULT_TARGETS;
+
+    char buffer[512];
+    if (strlen(spec) >= sizeof(buffer)) {
+        fprintf(stderr, "TELEMETRY_TARGETS is too long\n");
+        return -1;
+    }
+    strcpy(buffer, spec);
+
+    char *saveptr = NULL;
+    for (char *item = strtok_r(buffer, ",", &saveptr); item != NULL; item = strtok_r(NULL, ",", &saveptr)) {
+        if (add_target(item) < 0) return -1;
+    }
+    if (target_count == 0) {
+        fprintf(stderr, "TELEMETRY_TARGETS has no targets\n");
+        return -1;
+    }
+
+    /* GATEWAY_ID and TELEMETRY_KEY go inside the JSON as-is, so only plain tokens are accepted. */
+    const char *key = getenv("TELEMETRY_KEY");
+    if (key != NULL && *key != '\0') {
+        size_t length = strspn(key, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-~");
+        if (key[length] != '\0' || length > TELEMETRY_KEY_MAX) {
+            fprintf(stderr, "TELEMETRY_KEY: use up to %d letters, digits, '-', '_', '.' or '~'\n", TELEMETRY_KEY_MAX);
+            return -1;
+        }
+        strcpy(telemetry_key, key);
+    }
+
+    const char *gateway = getenv("GATEWAY_ID");
+    if (gateway != NULL && *gateway != '\0') {
+        size_t length = strspn(gateway, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-");
+        if (gateway[length] != '\0' || length > GATEWAY_ID_MAX) {
+            fprintf(stderr, "Ignoring GATEWAY_ID: use up to %d letters, digits, '-', '_' or '.'\n", GATEWAY_ID_MAX);
+        } else {
+            strcpy(gateway_id, gateway);
+        }
+    }
+
+    for (size_t index = 0; index < target_count; index++) {
+        printf("Forwarding telemetry to %s\n", targets[index].label);
+    }
+    if (gateway_id[0] != '\0') printf("Gateway ID: %s\n", gateway_id);
+    printf("Telemetry key: %s\n", telemetry_key[0] != '\0' ? "set" : "not set (backends must accept any sender)");
+    return 0;
+}
+
+static int connect_with_timeout(int sock, const struct sockaddr_in *address)
+{
+    int flags = fcntl(sock, F_GETFL, 0);
+    if (flags < 0 || fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) return -1;
+
+    if (connect(sock, (const struct sockaddr *)address, sizeof(*address)) < 0) {
+        if (errno != EINPROGRESS) return -1;
+
+        struct pollfd connect_fd = { .fd = sock, .events = POLLOUT };
+        int poll_result;
+        do {
+            poll_result = poll(&connect_fd, 1, BACKEND_TIMEOUT_MS);
+        } while (poll_result < 0 && errno == EINTR);
+        if (poll_result == 0) {
+            errno = ETIMEDOUT;
+            return -1;
+        }
+        if (poll_result < 0) return -1;
+
+        int socket_error = 0;
+        socklen_t error_length = sizeof(socket_error);
+        if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &socket_error, &error_length) < 0) return -1;
+        if (socket_error != 0) {
+            errno = socket_error;
+            return -1;
+        }
+    }
+
+    if (fcntl(sock, F_SETFL, flags) < 0) return -1;
+    struct timeval send_timeout = { .tv_sec = BACKEND_TIMEOUT_MS / 1000,
+                                    .tv_usec = (BACKEND_TIMEOUT_MS % 1000) * 1000 };
+    return setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &send_timeout, sizeof(send_timeout));
+}
+
+static int forward_to_target(const telemetry_target_t *target, const char *json)
 {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
@@ -272,12 +435,8 @@ static int forward_to_backend(const agro_neck_payload_t *payload)
         return -1;
     }
 
-    struct sockaddr_in backend_address = { 0 };
-    backend_address.sin_family = AF_INET;
-    backend_address.sin_port = htons(BACKEND_PORT);
-    if (inet_pton(AF_INET, BACKEND_IP, &backend_address.sin_addr) != 1 ||
-        connect(sock, (struct sockaddr *)&backend_address, sizeof(backend_address)) < 0) {
-        perror("connect to telemetry backend");
+    if (connect_with_timeout(sock, &target->address) < 0) {
+        fprintf(stderr, "connect to telemetry backend %s: %s\n", target->label, strerror(errno));
         close(sock);
         return -1;
     }
@@ -291,9 +450,50 @@ static int forward_to_backend(const agro_neck_payload_t *payload)
              payload->temperatura);
 
     int result = send_all(sock, json);
-    if (result < 0) perror("send telemetry to backend");
+    if (result < 0) fprintf(stderr, "send telemetry to %s: %s\n", target->label, strerror(errno));
     close(sock);
     return result;
+}
+
+/* SX1278 low-frequency port (433 MHz): RSSI = -164 + PacketRssi, corrected by SNR when below 0. */
+static int read_radio_quality(radio_quality_t *quality)
+{
+    uint8_t raw_snr = 0;
+    uint8_t raw_rssi = 0;
+    if (lora_read_register(0x19, &raw_snr) < 0 || lora_read_register(0x1A, &raw_rssi) < 0) return -1;
+
+    quality->snr_db = (int8_t)raw_snr / 4.0;
+    quality->rssi_dbm = -164 + raw_rssi;
+    if (quality->snr_db < 0) quality->rssi_dbm += (int)(quality->snr_db);
+    return 0;
+}
+
+static int format_telemetry(char *json, size_t size, const agro_neck_payload_t *payload,
+                            const radio_quality_t *quality)
+{
+    int length = snprintf(json, size, "{\"ID\":\"COLLAR-%u\",\"LAT\":%.6f,\"LONG\":%.6f,\"TEMP\":\"%.2f\"",
+                          (unsigned)payload->id_collar,
+                          payload->latitud / 1000000.0,
+                          payload->longitud / 1000000.0,
+                          payload->temperatura);
+    if (quality != NULL && length > 0 && (size_t)length < size) {
+        length += snprintf(json + length, size - (size_t)length, ",\"RSSI\":%d,\"SNR\":%.2f",
+                           quality->rssi_dbm, quality->snr_db);
+    }
+    if (gateway_id[0] != '\0' && length > 0 && (size_t)length < size) {
+        length += snprintf(json + length, size - (size_t)length, ",\"GW\":\"%s\"", gateway_id);
+    }
+    if (telemetry_key[0] != '\0' && length > 0 && (size_t)length < size) {
+        length += snprintf(json + length, size - (size_t)length, ",\"KEY\":\"%s\"", telemetry_key);
+    }
+    if (length > 0 && (size_t)length < size) {
+        length += snprintf(json + length, size - (size_t)length, "}\n");
+    }
+    if (length < 0 || (size_t)length >= size) {
+        fprintf(stderr, "Telemetry JSON does not fit in %zu bytes\n", size);
+        return -1;
+    }
+    return 0;
 }
 
 static void close_receiver(void)
@@ -308,6 +508,7 @@ int main(void)
     uint8_t packet[LORA_PACKET_SIZE];
     size_t packet_length = 0;
 
+    if (load_config() < 0) return EXIT_FAILURE;
     if (lora_initialize() < 0) {
         close_receiver();
         return EXIT_FAILURE;
@@ -339,6 +540,15 @@ int main(void)
                payload.latitud / -1000000.0,
                payload.longitud / -1000000.0);
 
-        forward_to_backend(&payload);
+        radio_quality_t quality;
+        int has_quality = read_radio_quality(&quality) == 0;
+        if (has_quality) printf("Signal RSSI=%d dBm SNR=%.2f dB\n", quality.rssi_dbm, quality.snr_db);
+
+        char json[JSON_MAX];
+        if (format_telemetry(json, sizeof(json), &payload, has_quality ? &quality : NULL) < 0) continue;
+        /* Each backend is independent: one being down doesn't stop the others. */
+        for (size_t index = 0; index < target_count; index++) {
+            forward_to_target(&targets[index], json);
+        }
     }
 }

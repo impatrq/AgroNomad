@@ -1,17 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 export default function RenameAnimalModal({ animal, isOpen, onClose, onConfirm }) {
-  const [name, setName] = useState('')
+  const [name, setName] = useState(animal?.name || '')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    if (isOpen && animal) {
-      setName(animal.name || '')
-      setError('')
-      setSubmitting(false)
-    }
-  }, [animal, isOpen])
 
   if (!isOpen || !animal) {
     return null

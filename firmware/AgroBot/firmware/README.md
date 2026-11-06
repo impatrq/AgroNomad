@@ -110,9 +110,3 @@ gcc main.c -o agro-neck-example
 ```
 
 Antes de ejecutarlo, el servidor backend debe estar iniciado y escuchando en el puerto TCP configurado.
-
-## Limitaciones actuales
-
-- El simulador sigue usando datos GPS y temperatura de prueba.
-- El receptor reenvía la telemetría al backend, pero la recepción de radio debe validarse en el hardware conectado.
-- Consultá `../Setup.md` para los pasos de instalación y prueba de extremo a extremo.

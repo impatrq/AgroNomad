@@ -100,6 +100,8 @@ El salto de linea al final permite separar mensajes consecutivos.
 
 El programa usa datos fijos. No recibe aun datos reales de LoRa. Ademas, el backend actualmente guarda temperatura y ubicacion, pero no usa correctamente `FIRMWARE_VERS` ni `HARDWARE_VERS` del payload.
 
+El AgroBot tambien puede enviar un payload de estado con `ID: "RP"`. Ese identificador pertenece a la Raspberry Pi y el backend lo ignora; no se muestra como un animal.
+
 ## 5. Backend: `server/server.js`
 
 El backend contiene dos servidores independientes:
@@ -166,6 +168,9 @@ Inicializa todo en este orden:
 |---|---|
 | `GET /api/animals` | Refresca y devuelve los animales desde PostgreSQL. |
 | `GET /api/yards` | Refresca y devuelve los limites de los campos. |
+| `POST /api/yards` | Crea un yard con un poligono definido por coordenadas. |
+| `PUT /api/yards/:id` | Actualiza el nombre y el poligono de un yard existente. |
+| `DELETE /api/yards/:id` | Elimina definitivamente un yard. |
 | `GET /api/status` | Devuelve `status: ok` y la cantidad de animales. |
 | `POST /api/animals/rename` | Cambia el nombre de un animal. |
 
@@ -392,31 +397,3 @@ Usa la instancia del mapa para centrarlo suavemente en la posicion seleccionada.
 ### `client/src/pages/Login.jsx`
 
 Muestra formulario de email y contraseña y envia `POST /api/login`. Sin embargo, el backend actual no implementa esa ruta ni una autenticacion real.
-
-## 10. Resumen de lo implementado actualmente
-
-- Recepcion TCP de payloads JSON.
-- Persistencia de animales, dispositivos y posiciones GPS.
-- Persistencia de limites de campos en PostgreSQL/PostGIS.
-- Carga de datos demo idempotente.
-- API para animales, campos, estado y renombrado.
-- Dashboard con mapa, marcadores y limites.
-- Actualizacion periodica de animales cada 15 segundos.
-- Reconexion basica del cliente C cuando se pierde el socket.
-
-## 11. Lista de pendientes
-
-Estas funciones aparecen en los documentos de planificacion, pero no estan terminadas en el codigo actual:
-
-1. Actualizar `devices.last_seen` en cada paquete recibido.
-2. Guardar `FIRMWARE_VERS` y `HARDWARE_VERS` enviados por el collar.
-3. Implementar consultas y endpoints para el historial de posiciones.
-4. Dibujar trayectos historicos con colores segun movimiento.
-5. Detectar y marcar animales fuera de los limites del campo.
-6. Implementar login, cookies/sesiones y proteccion de rutas.
-7. Agregar la ruta frontend `/history/:id`.
-8. Separar mejor datos demo de datos reales.
-9. Reemplazar polling por WebSocket si se necesita tiempo real.
-10. Agregar limites de tamaño y validacion mas robusta para mensajes TCP.
-11. Revisar el manejo de errores de operaciones asincronas del socket.
-12. Agregar backups automaticos y almacenamiento de telemetria si el volumen crece.

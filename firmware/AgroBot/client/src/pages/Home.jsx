@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useState } from 'react'
 import RenameAnimalModal from '../components/RenameAnimalModal'
 import TopNav from '../components/home/TopNav'
 import MapSection from '../components/home/MapSection'
 import OverviewPanel from '../components/home/OverviewPanel'
 import AnimalDetailsPanel from '../components/home/AnimalDetailsPanel'
 import useAnimalDashboard from '../hooks/useAnimalDashboard'
-import { hasValidAnimalPosition } from '../lib/utils'
+import useAnimalHistory from '../hooks/useAnimalHistory'
+import { hasValidAnimalPosition, isSameAnimalPosition } from '../lib/utils'
 
 export default function Home({ onNavigate }) {
   const {
@@ -21,12 +22,47 @@ export default function Home({ onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [renameModalOpen, setRenameModalOpen] = useState(false)
 
-  const animalsWithoutPosition = animals.filter((animal) => !hasValidAnimalPosition(animal))
+  const animalsWithoutPosition = animals.filter((animal) => !animal.hasPosition)
+  const { positions: animalHistory } = useAnimalHistory(selectedAnimal?.id)
+
+  const historyPositions = useMemo(() => {
+    if (!selectedAnimal) return []
+
+    return animalHistory.filter(
+      (position) =>
+        hasValidAnimalPosition(position) &&
+        !isSameAnimalPosition(position, selectedAnimal)
+    )
+  }, [animalHistory, selectedAnimal])
 
   const scrollToSection = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     setMenuOpen(false)
   }
+
+  // On first load, center the page view on the map instead of opening at the top.
+  useLayoutEffect(() => {
+    const mapSection = document.getElementById('map-section')
+    if (!mapSection) return
+
+    const centerOnMap = () => {
+      const headerHeight = document.querySelector('header')?.offsetHeight ?? 0
+      const sectionRect = mapSection.getBoundingClientRect()
+      const sectionCenter = window.scrollY + sectionRect.top + sectionRect.height / 2
+      const visibleViewportCenter = headerHeight + (window.innerHeight - headerHeight) / 2
+      const maxScroll = Math.max(
+        document.documentElement.scrollHeight - window.innerHeight,
+        0,
+      )
+
+      window.scrollTo({
+        top: Math.min(Math.max(sectionCenter - visibleViewportCenter, 0), maxScroll),
+        behavior: 'instant',
+      })
+    }
+
+    centerOnMap()
+  }, [])
 
   const mapPosition = useMemo(() => {
     if (selectedAnimal && hasValidAnimalPosition(selectedAnimal)) {
@@ -57,12 +93,18 @@ export default function Home({ onNavigate }) {
             yardBoundaries={yardBoundaries}
             mapPosition={mapPosition}
             animalsWithoutPosition={animalsWithoutPosition}
+            historyPositions={historyPositions}
             loading={loading}
             error={error}
           />
 
           <div className="grid items-stretch gap-6 xl:grid-cols-[1.5fr_0.9fr]">
-            <OverviewPanel animals={animals} loading={loading} error={error} />
+            <OverviewPanel
+              animals={animals}
+              selectedAnimal={selectedAnimal}
+              loading={loading}
+              error={error}
+            />
             <AnimalDetailsPanel
               selectedAnimal={selectedAnimal}
               onNavigate={onNavigate}
@@ -72,12 +114,15 @@ export default function Home({ onNavigate }) {
         </div>
       </section>
 
-      <RenameAnimalModal
-        animal={selectedAnimal}
-        isOpen={renameModalOpen}
-        onClose={() => setRenameModalOpen(false)}
-        onConfirm={handleRenameAnimal}
-      />
+      {renameModalOpen && selectedAnimal && (
+        <RenameAnimalModal
+          key={selectedAnimal.id}
+          animal={selectedAnimal}
+          isOpen
+          onClose={() => setRenameModalOpen(false)}
+          onConfirm={handleRenameAnimal}
+        />
+      )}
     </div>
   )
 }
