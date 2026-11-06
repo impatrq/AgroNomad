@@ -87,23 +87,12 @@ void aplica_estado_mosfet() {
 // Inicialización de Salida de MOSFETs
 void init_mosfet_gpios() {
     gpio_deep_sleep_hold_dis();
-    
-    rtc_gpio_deinit(MOSFET1);
-    rtc_gpio_deinit(MOSFET2);
-    rtc_gpio_deinit(MOSFET3);
-    rtc_gpio_deinit(MOSFET4);
 
     gpio_hold_dis(MOSFET1);
     gpio_hold_dis(MOSFET2);
     gpio_hold_dis(MOSFET3);
     gpio_hold_dis(MOSFET4);
 
-    // 1. Escribir los niveles lógicos deseados (en '1') ANTES de configurar los pines
-    // Por ejemplo, para dejar la rama 2+3 activa en '1':
-    gpio_set_level(MOSFET1, 0);
-    gpio_set_level(MOSFET4, 0);
-    gpio_set_level(MOSFET2, 1);
-    gpio_set_level(MOSFET3, 1);
 
     gpio_config_t io_config = {
         .intr_type = GPIO_INTR_DISABLE,
@@ -112,10 +101,9 @@ void init_mosfet_gpios() {
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .pull_up_en = GPIO_PULLUP_DISABLE,
     };
+    
     gpio_config(&io_config);
 
-    gpio_set_level(MOSFET2, 1);
-    gpio_set_level(MOSFET3, 1);
 }
 
 // Switcheo de MOSFETs (alternar entre baterías)
@@ -138,7 +126,7 @@ void hora_actual() {
     if (!sistema_inicializado) {
         tiempo_switch = tiempo_actual;
         sistema_inicializado = true;
-        //aplica_estado_mosfet();
+        aplica_estado_mosfet();
         ESP_LOGI("MAIN", "Tiempo base inicializado: %llu s", tiempo_switch);
         return;
     }
@@ -149,8 +137,8 @@ void hora_actual() {
 
     // Evalúa si ya pasó el tiempo necesario para cambiar de batería
     if (transcurrido >= TIEMPO_CAMBIO_BATS) {
-        //switch_mosfet();
-        //lora_reinit();
+        switch_mosfet();
+        lora_reinit();
         tiempo_switch = tiempo_actual; // Se actualiza el tiempo base con la hora actual
     } 
 }
