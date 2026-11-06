@@ -32,7 +32,13 @@ function getDurationSinceMidnight(start, end, dayStart, now) {
 
 function getAnimalActivityTimers(animal, now) {
   const zero = "0h 0m 0s";
-  if (!animal || !hasValidAnimalPosition(animal)) {
+  if (!animal) {
+    return { movementTime: "—", restTime: "—" };
+  }
+  const hasActivity = animal.quietSince != null ||
+    animal.movementStartedAt != null ||
+    animal.lastMovementAt != null;
+  if (!hasValidAnimalPosition(animal) && !hasActivity) {
     return { movementTime: "—", restTime: "—" };
   }
 
@@ -502,9 +508,7 @@ function OverviewCard({
 export default function OverviewPanel({ animals, selectedAnimal, loading, error }) {
   const now = useCurrentTime();
   const { movementTime, restTime } = getAnimalActivityTimers(selectedAnimal, now);
-  const hasCurrentPosition =
-    selectedAnimal && selectedAnimal.hasPosition !== false && hasValidAnimalPosition(selectedAnimal);
-  const distanceTodayMeters = hasCurrentPosition
+  const distanceTodayMeters = selectedAnimal && Number.isFinite(selectedAnimal.distanceTodayMeters)
     ? now && selectedAnimal.dateKey !== getLocalDateKey(now)
       ? 0
       : selectedAnimal.distanceTodayMeters

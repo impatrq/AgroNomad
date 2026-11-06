@@ -9,6 +9,9 @@ import {
   normalizeBoundaryGroups,
 } from '../lib/utils'
 
+const MAX_ANIMAL_SPEED_METERS_PER_SECOND = 15
+const MAX_POSITION_GAP_FOR_DISTANCE_MS = 60_000
+
 function getDistanceMeters(lat1, lng1, lat2, lng2) {
   const toRadians = (degrees) => (degrees * Math.PI) / 180
   const latitudeDifference = toRadians(lat2 - lat1)
@@ -45,21 +48,45 @@ function storeDailyDistance(animalId, dateKey, distance) {
 }
 
 function updateAnimalActivity(activityByAnimal, animal, timestamp) {
-  if (!animal.hasPosition) {
-    return { movementStartedAt: null, lastMovementAt: null, quietSince: null }
-  }
-
   const dateKey = getLocalDateKey(timestamp)
   const previous = activityByAnimal.get(animal.id)
-  if (!previous) {
-    const initialActivity = {
-      anchorLat: animal.lat,
-      anchorLng: animal.lng,
+
+  if (!animal.hasPosition) {
+    const activity = previous ?? {
       dateKey,
       distanceTodayMeters: getStoredDailyDistance(animal.id, dateKey),
-      quietSince: timestamp,
+      quietSince: null,
       movementStartedAt: null,
       lastMovementAt: null,
+    }
+    const currentActivity = activity.dateKey === dateKey
+      ? activity
+      : {
+          ...activity,
+          dateKey,
+          distanceTodayMeters: getStoredDailyDistance(animal.id, dateKey),
+        }
+    activityByAnimal.set(animal.id, currentActivity)
+    return currentActivity
+  }
+
+  if (
+    !previous ||
+    !Number.isFinite(previous.anchorLat) ||
+    !Number.isFinite(previous.anchorLng)
+  ) {
+    const initialActivity = {
+      ...previous,
+      anchorLat: animal.lat,
+      anchorLng: animal.lng,
+      anchorUpdatedAt: timestamp,
+      dateKey,
+      distanceTodayMeters: previous?.dateKey === dateKey
+        ? previous.distanceTodayMeters
+        : getStoredDailyDistance(animal.id, dateKey),
+      quietSince: previous?.quietSince ?? timestamp,
+      movementStartedAt: previous?.movementStartedAt ?? null,
+      lastMovementAt: previous?.lastMovementAt ?? null,
     }
     activityByAnimal.set(animal.id, initialActivity)
     return initialActivity
@@ -70,6 +97,7 @@ function updateAnimalActivity(activityByAnimal, animal, timestamp) {
       ...previous,
       anchorLat: animal.lat,
       anchorLng: animal.lng,
+      anchorUpdatedAt: timestamp,
       dateKey,
       distanceTodayMeters: getStoredDailyDistance(animal.id, dateKey),
     }
@@ -84,12 +112,26 @@ function updateAnimalActivity(activityByAnimal, animal, timestamp) {
     animal.lng,
   )
   if (movedDistance >= ANIMAL_MOVEMENT_THRESHOLD_METERS) {
+    const elapsedMs = Math.max(timestamp - previous.anchorUpdatedAt, 0)
+    const plausibleDistance =
+      MAX_ANIMAL_SPEED_METERS_PER_SECOND *
+        (Math.min(elapsedMs, MAX_POSITION_GAP_FOR_DISTANCE_MS) / 1000) +
+      ANIMAL_MOVEMENT_THRESHOLD_METERS
+    if (movedDistance > plausibleDistance) {
+      console.warn(
+        `[Telemetry] Ignoring implausible GPS jump for ${animal.id}: ` +
+          `${Math.round(movedDistance)} m in ${Math.round(elapsedMs / 1000)} s`,
+      )
+      return previous
+    }
+
     const movementContinues =
       previous.lastMovementAt !== null &&
       timestamp - previous.lastMovementAt < ANIMAL_REST_DELAY_MS
     const updatedActivity = {
       anchorLat: animal.lat,
       anchorLng: animal.lng,
+      anchorUpdatedAt: timestamp,
       dateKey,
       distanceTodayMeters: previous.distanceTodayMeters + movedDistance,
       quietSince: null,
