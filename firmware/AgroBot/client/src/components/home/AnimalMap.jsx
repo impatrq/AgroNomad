@@ -1,6 +1,32 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { CircleMarker, MapContainer, Polygon, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import { divIcon } from 'leaflet'
+import { CircleMarker, MapContainer, Marker, Polygon, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { hasValidAnimalPosition } from '../../lib/utils'
+
+function getBearing([startLat, startLng], [endLat, endLng]) {
+  const toRadians = (degrees) => (degrees * Math.PI) / 180
+  const toDegrees = (radians) => (radians * 180) / Math.PI
+  const startLatitude = toRadians(startLat)
+  const endLatitude = toRadians(endLat)
+  const longitudeDifference = toRadians(endLng - startLng)
+  const y = Math.sin(longitudeDifference) * Math.cos(endLatitude)
+  const x =
+    Math.cos(startLatitude) * Math.sin(endLatitude) -
+    Math.sin(startLatitude) * Math.cos(endLatitude) * Math.cos(longitudeDifference)
+
+  return (toDegrees(Math.atan2(y, x)) + 360) % 360
+}
+
+function createDirectionIcon(bearing) {
+  return divIcon({
+    className: 'history-direction-icon',
+    html: `<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" style="transform: rotate(${bearing}deg)">
+      <path d="M12 2 21 22 12 17 3 22 12 2Z" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" />
+    </svg>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  })
+}
 
 function FitAnimalPositions({ animals }) {
   const map = useMap()
@@ -40,8 +66,25 @@ export default function AnimalMap({
   )
 
   const historyPath = useMemo(
-    () => historyPositions.map((position) => [position.lat, position.lng]),
-    [historyPositions]
+    () => {
+      const positions = historyPositions.map((position) => [position.lat, position.lng])
+      if (
+        selectedAnimal?.hasPosition !== false &&
+        hasValidAnimalPosition(selectedAnimal)
+      ) {
+        const currentPosition = [selectedAnimal.lat, selectedAnimal.lng]
+        const lastPosition = positions.at(-1)
+        if (
+          !lastPosition ||
+          lastPosition[0] !== currentPosition[0] ||
+          lastPosition[1] !== currentPosition[1]
+        ) {
+          positions.push(currentPosition)
+        }
+      }
+      return positions
+    },
+    [historyPositions, selectedAnimal]
   )
 
   return (
@@ -82,12 +125,30 @@ export default function AnimalMap({
             positions={historyPath}
             pathOptions={{
               color: '#38bdf8',
-              weight: 3,
-              opacity: 0.95,
-              dashArray: '6 8',
+              weight: 2,
+              opacity: 0.65,
             }}
           />
         )}
+
+        {historyPath.slice(1).map((position, index) => {
+          const previousPosition = historyPath[index]
+          const center = [
+            (previousPosition[0] + position[0]) / 2,
+            (previousPosition[1] + position[1]) / 2,
+          ]
+          const bearing = getBearing(previousPosition, position)
+
+          return (
+            <Marker
+              key={`history-direction-${index}`}
+              position={center}
+              icon={createDirectionIcon(bearing)}
+              interactive={false}
+              keyboard={false}
+            />
+          )
+        })}
 
         {historyPath.map((position, index) => (
           <CircleMarker
