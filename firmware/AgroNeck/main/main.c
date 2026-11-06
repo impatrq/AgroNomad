@@ -87,3 +87,19 @@ void init_mosfet_gpios() {
     
     gpio_config(&io_config);
 }
+
+void aplica_estado_mosfet() {
+    ESP_LOGI("MOSFETS","Aplicando estado %d...", estado_mosfet);
+    gpio_set_level(MOSFET1, 1);
+    gpio_set_level(MOSFET4, 1);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    gpio_set_level(MOSFET2, 0);
+    gpio_set_level(MOSFET3, 0);
+    
+    // mantener estado al entrar en deep sleep
+    // gpio_hold_en(MOSFET1);
+    // gpio_hold_en(MOSFET2);
+    // gpio_hold_en(MOSFET3);
+    // gpio_hold_en(MOSFET4);
+    // gpio_deep_sleep_hold_en();  
+}
