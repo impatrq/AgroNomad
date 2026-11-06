@@ -30,23 +30,22 @@ function createDirectionIcon(bearing) {
 
 function FitAnimalPositions({ animals }) {
   const map = useMap()
-  const previousPositionsKey = useRef('')
+  const hasFittedInitialPositions = useRef(false)
 
   useEffect(() => {
-    const positionedAnimals = animals.filter(hasValidAnimalPosition)
-    const positionsKey = positionedAnimals
-      .map((animal) => `${animal.id}:${animal.lat}:${animal.lng}`)
-      .join('|')
+    if (hasFittedInitialPositions.current) return
 
-    if (positionsKey === previousPositionsKey.current) return
-    previousPositionsKey.current = positionsKey
+    const positionedAnimals = animals.filter(hasValidAnimalPosition)
+    if (positionedAnimals.length === 0) return
 
     const positions = positionedAnimals.map((animal) => [animal.lat, animal.lng])
     if (positions.length === 1) {
       map.setView(positions[0], 18)
-    } else if (positions.length > 1) {
+    } else {
       map.fitBounds(positions, { padding: [32, 32], maxZoom: 18 })
     }
+
+    hasFittedInitialPositions.current = true
   }, [animals, map])
 
   return null
