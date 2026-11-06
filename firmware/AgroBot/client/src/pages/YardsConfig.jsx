@@ -321,6 +321,8 @@ export default function YardsConfig({ onNavigate }) {
                     color: String(yard.id) === selectedId ? '#16a34a' : '#facc15',
                     weight: String(yard.id) === selectedId ? 3 : 2,
                     fillOpacity: 0,
+                    dashArray: '10 8',
+                    lineCap: 'butt',
                   }}
                 >
                   <Tooltip>{yard.name}</Tooltip>
@@ -332,7 +334,13 @@ export default function YardsConfig({ onNavigate }) {
                   {draftPositions.length > 2 ? (
                     <Polygon
                       positions={draftPositions}
-                      pathOptions={{ color: '#f97316', weight: 3, fillOpacity: 0 }}
+                      pathOptions={{
+                        color: '#f97316',
+                        weight: 3,
+                        fillOpacity: 0,
+                        dashArray: '10 8',
+                        lineCap: 'butt',
+                      }}
                     />
                   ) : (
                     <Polyline positions={draftPositions} pathOptions={{ color: '#f97316', weight: 3 }} />

@@ -114,7 +114,8 @@ export default function AnimalMap({
               opacity: 0.8,
               fillColor: '#22c55e',
               fillOpacity: 0,
-              dashArray: '6 6',
+              dashArray: '10 8',
+              lineCap: 'butt',
             }}
           >
             <Tooltip>{boundary.name}</Tooltip>
