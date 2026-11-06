@@ -68,3 +68,22 @@ mlx90614_data_t mlx_data;
 #define MOSFET_SWITCH_ENABLED 1
 
 // !! FUNCIONES !!
+
+// !! MOSFETS !!
+// Inicialización de Salida de MOSFETs
+void init_mosfet_gpios() {
+    gpio_hold_dis(MOSFET1);
+    gpio_hold_dis(MOSFET2);
+    gpio_hold_dis(MOSFET3);
+    gpio_hold_dis(MOSFET4);
+
+    gpio_config_t io_config = {
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = GPIO_MOSFET_MASK,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+    };
+    
+    gpio_config(&io_config);
+}
