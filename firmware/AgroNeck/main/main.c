@@ -88,10 +88,22 @@ void aplica_estado_mosfet() {
 void init_mosfet_gpios() {
     gpio_deep_sleep_hold_dis();
     
+    rtc_gpio_deinit(MOSFET1);
+    rtc_gpio_deinit(MOSFET2);
+    rtc_gpio_deinit(MOSFET3);
+    rtc_gpio_deinit(MOSFET4);
+
     gpio_hold_dis(MOSFET1);
     gpio_hold_dis(MOSFET2);
     gpio_hold_dis(MOSFET3);
     gpio_hold_dis(MOSFET4);
+
+    // 1. Escribir los niveles lógicos deseados (en '1') ANTES de configurar los pines
+    // Por ejemplo, para dejar la rama 2+3 activa en '1':
+    gpio_set_level(MOSFET1, 0);
+    gpio_set_level(MOSFET4, 0);
+    gpio_set_level(MOSFET2, 1);
+    gpio_set_level(MOSFET3, 1);
 
     gpio_config_t io_config = {
         .intr_type = GPIO_INTR_DISABLE,
@@ -102,7 +114,8 @@ void init_mosfet_gpios() {
     };
     gpio_config(&io_config);
 
-    aplica_estado_mosfet();
+    gpio_set_level(MOSFET2, 1);
+    gpio_set_level(MOSFET3, 1);
 }
 
 // Switcheo de MOSFETs (alternar entre baterías)
@@ -125,7 +138,7 @@ void hora_actual() {
     if (!sistema_inicializado) {
         tiempo_switch = tiempo_actual;
         sistema_inicializado = true;
-        aplica_estado_mosfet();
+        //aplica_estado_mosfet();
         ESP_LOGI("MAIN", "Tiempo base inicializado: %llu s", tiempo_switch);
         return;
     }
@@ -136,14 +149,10 @@ void hora_actual() {
 
     // Evalúa si ya pasó el tiempo necesario para cambiar de batería
     if (transcurrido >= TIEMPO_CAMBIO_BATS) {
-        switch_mosfet();
-        lora_reinit();
+        //switch_mosfet();
+        //lora_reinit();
         tiempo_switch = tiempo_actual; // Se actualiza el tiempo base con la hora actual
-    } else {
-        ESP_LOGI("MOSFETS", "Aún no transcurrió el tiempo (%llu/%llu s). Se mantiene estado.", 
-                 transcurrido, (uint64_t)TIEMPO_CAMBIO_BATS);
-        aplica_estado_mosfet();
-    }
+    } 
 }
 
 // ============================================================
@@ -338,6 +347,7 @@ void app_main(void)
 
         transmitir_datos(&paquete);
 
+        vTaskDelay(pdMS_TO_TICKS(300));
 
         // Evalúa y aplica el cambio de batería
         ESP_LOGI("Energía","Analizando estado de switcheo.");
