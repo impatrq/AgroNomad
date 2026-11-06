@@ -22,3 +22,47 @@
 #define LORA_QUEUE_LEN     4      // paquetes en buffer
 
 static QueueHandle_t lora_queue = NULL;
+
+// PARAMETROS AJUSTABLES Y DEFINICIONES DE MAIN
+// MODO SLEEP
+#define WAKEUP_GPIO     27 // GPIO que despierta del modo sleep 
+#define WAKEUP_LEVEL    1  // Activarse con nivel alto/flanco ascendente
+
+// CONTROL DE ALIMENTACIÓN - C1+C4 o C2+C3
+#define MOSFET1 25 // GPIO del MOSFET CONTROL3
+#define MOSFET2 26 // GPIO del MOSFET CONTROL4
+#define MOSFET3 32 // GPIO del MOSFET CONTROL1
+#define MOSFET4 33 // GPIO del MOSFET CONTROL2
+
+// Mascara de manejo de los 4 pines
+#define GPIO_MOSFET_MASK ((1ULL<<MOSFET1) | (1ULL<<MOSFET2) | (1ULL<<MOSFET3) | (1ULL<<MOSFET4))
+
+// Conmutación de baterías
+#define TIEMPO_CAMBIO_BATS 300
+
+// Sensores temperatura
+#define Vout_LM35       34 
+#define H_COEFICIENTE   0.10f 
+
+// Variables guardadas en memoria RTC (sobreviven al Deep Sleep)
+RTC_DATA_ATTR bool estado_mosfet = true; // true = estado inicial (2+3), false = estado secundario (1+4)
+RTC_DATA_ATTR uint64_t tiempo_switch = 0;
+RTC_DATA_ATTR bool sistema_inicializado = false;
+
+// VARIABLES DE DATOS
+double latitude; 
+double longitude; 
+char lat_hemisphere; 
+char lon_hemisphere; 
+float velocidad; 
+double lat_signed;
+double lon_signed;
+
+// Variables de temperatura
+float lm_amb_temp;  
+float temp_interna; 
+
+mlx90614_data_t mlx_data; 
+
+// Declara los estados de los MOSFETs
+#define MOSFET_SWITCH_ENABLED 1
