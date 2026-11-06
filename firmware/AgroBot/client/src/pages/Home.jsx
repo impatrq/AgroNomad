@@ -114,12 +114,15 @@ export default function Home({ onNavigate }) {
         </div>
       </section>
 
-      <RenameAnimalModal
-        animal={selectedAnimal}
-        isOpen={renameModalOpen}
-        onClose={() => setRenameModalOpen(false)}
-        onConfirm={handleRenameAnimal}
-      />
+      {renameModalOpen && selectedAnimal && (
+        <RenameAnimalModal
+          key={selectedAnimal.id}
+          animal={selectedAnimal}
+          isOpen
+          onClose={() => setRenameModalOpen(false)}
+          onConfirm={handleRenameAnimal}
+        />
+      )}
     </div>
   )
 }
