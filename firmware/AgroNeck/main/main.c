@@ -32,13 +32,17 @@
 // Mascara de manejo de los 4 pines
 #define GPIO_MOSFET_MASK ((1ULL<<MOSFET1) | (1ULL<<MOSFET2) | (1ULL<<MOSFET3) | (1ULL<<MOSFET4))
 
+// Conmutación de baterías
+#define TIEMPO_CAMBIO_BATS 300
+
+// Sensores temperatura
+#define Vout_LM35       34 
+#define H_COEFICIENTE   0.10f 
+
 // Variables guardadas en memoria RTC (sobreviven al Deep Sleep)
 RTC_DATA_ATTR bool estado_mosfet = true; // true = estado inicial (2+3), false = estado secundario (1+4)
 RTC_DATA_ATTR uint64_t tiempo_switch = 0;
 RTC_DATA_ATTR bool sistema_inicializado = false;
-
-// Conmutación de baterías
-#define TIEMPO_CAMBIO_BATS 300
 
 // VARIABLES DE DATOS
 double latitude; 
@@ -48,19 +52,47 @@ char lon_hemisphere;
 float velocidad; 
 double lat_signed;
 double lon_signed;
-#define Vout_LM35       34 
-#define H_COEFICIENTE   0.10f 
+
+// Variables de temperatura
 float lm_amb_temp;  
-mlx90614_data_t mlx_data; 
 float temp_interna; 
+
+mlx90614_data_t mlx_data; 
+
+// Declara los estados de los MOSFETs
+// DIAGNÓSTICO: 0 = no tocar los MOSFETs (prueba de causa raíz)
+#define MOSFET_SWITCH_ENABLED 1
+
+void aplica_estado_mosfet() {
+    ESP_LOGI("MOSFETS","Aplicando estado %d...", estado_mosfet);
+#if !MOSFET_SWITCH_ENABLED
+    ESP_LOGW("MOSFETS","[DIAG] Switch de MOSFETs DESHABILITADO: no se toca la alimentacion");
+    return;
+#endif
+    if (estado_mosfet) { // Estado inicial: 2+3
+        gpio_set_level(MOSFET1, 1);
+        gpio_set_level(MOSFET4, 1);
+        vTaskDelay(pdMS_TO_TICKS(10));
+        gpio_set_level(MOSFET2, 0);
+        gpio_set_level(MOSFET3, 0);
+    } else { // Estado secundario: 1+4
+        gpio_set_level(MOSFET2, 1);
+        gpio_set_level(MOSFET3, 1);
+        vTaskDelay(pdMS_TO_TICKS(10));
+        gpio_set_level(MOSFET1, 0);
+        gpio_set_level(MOSFET4, 0);
+    }
+}
 
 // Inicialización de Salida de MOSFETs
 void init_mosfet_gpios() {
     gpio_deep_sleep_hold_dis();
+
     gpio_hold_dis(MOSFET1);
     gpio_hold_dis(MOSFET2);
     gpio_hold_dis(MOSFET3);
     gpio_hold_dis(MOSFET4);
+
 
     gpio_config_t io_config = {
         .intr_type = GPIO_INTR_DISABLE,
@@ -69,33 +101,9 @@ void init_mosfet_gpios() {
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .pull_up_en = GPIO_PULLUP_DISABLE,
     };
+    
     gpio_config(&io_config);
-}
 
-// Declara los estados de los MOSFETs
-void aplica_estado_mosfet() {
-    ESP_LOGI("MOSFETS","Aplicando estado %d...", estado_mosfet);
-    if (estado_mosfet) { // Estado inicial: 2+3
-        //gpio_set_level(MOSFET1, 0);
-        //gpio_set_level(MOSFET4, 0);
-        //gpio_set_level(MOSFET2, 1);
-        //gpio_set_level(MOSFET3, 1);
-        gpio_set_level(MOSFET2, 1);
-        gpio_set_level(MOSFET3, 1);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        gpio_set_level(MOSFET1, 0);
-        gpio_set_level(MOSFET4, 0);
-    } else { // Estado secundario: 1+4
-        //gpio_set_level(MOSFET2, 0);
-        //gpio_set_level(MOSFET3, 0);
-        //gpio_set_level(MOSFET1, 1);
-        //gpio_set_level(MOSFET4, 1);
-        gpio_set_level(MOSFET1, 1);
-        gpio_set_level(MOSFET4, 1);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        gpio_set_level(MOSFET2, 0);
-        gpio_set_level(MOSFET3, 0);
-    }
 }
 
 // Switcheo de MOSFETs (alternar entre baterías)
@@ -130,15 +138,15 @@ void hora_actual() {
     // Evalúa si ya pasó el tiempo necesario para cambiar de batería
     if (transcurrido >= TIEMPO_CAMBIO_BATS) {
         switch_mosfet();
+        lora_reinit();
         tiempo_switch = tiempo_actual; // Se actualiza el tiempo base con la hora actual
-    } else {
-        ESP_LOGI("MOSFETS", "Aún no transcurrió el tiempo (%llu/%llu s). Se mantiene estado.", 
-                 transcurrido, (uint64_t)TIEMPO_CAMBIO_BATS);
-        aplica_estado_mosfet();
-    }
+    } 
 }
 
-/* FUNCIONES DE LECTURA DE SENSORES */
+// ============================================================
+// FUNCIONES DE LECTURA DE SENSORES
+// ============================================================
+
 void read_lm35() {
     ESP_LOGI("read_lm35","Intentando leer LM35...");
     lm35_data_t data;
@@ -189,7 +197,9 @@ void read_mlx90614() {
     }
 }
 
-/* FUNCIONES DE CALCULO Y PROCESAMIENTO DE DATOS */
+// ============================================================
+// FUNCIONES DE CÁLCULO Y PROCESAMIENTO DE DATOS
+// ============================================================
 void internal_temp() {
     ESP_LOGI("Temp.Calc","Calculando temperatura interna...");
     temp_interna = (mlx_data.mlx_object_temp-15) + (mlx_data.mlx_object_temp-15 - (lm_amb_temp)) * H_COEFICIENTE;
@@ -297,11 +307,14 @@ void app_main(void)
 
     //Función utilizada para probar el sistema sin Deep-Sleep
     ESP_LOGI("Inicializacion","Iniciando buses y perifericos.");
+    init_mosfet_gpios();
+    aplica_estado_mosfet();
+    vTaskDelay(pdMS_TO_TICKS(50));
+
     gps_starting();
     init_i2c();
     mpu6050_init(I2C_NUM_0);
     lm35_init();
-    init_mosfet_gpios();
     lora_init();
 
     while(1) {
@@ -322,10 +335,15 @@ void app_main(void)
 
         transmitir_datos(&paquete);
 
+        vTaskDelay(pdMS_TO_TICKS(300));
 
         // Evalúa y aplica el cambio de batería
         ESP_LOGI("Energía","Analizando estado de switcheo.");
         hora_actual();
+
+        // DIAGNÓSTICO: ¿la radio sigue viva después de switchear los MOSFETs?
+        ESP_LOGW("LoRaDiag","Version 0x42 post-MOSFET: 0x%02X", lora_version());
+
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
     #endif

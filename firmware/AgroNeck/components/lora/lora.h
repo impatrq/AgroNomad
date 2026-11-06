@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdbool.h>
 
 // Pines LORA
 #define LORA_CS         5
@@ -18,4 +19,6 @@ typedef struct __attribute__((packed)) {
 
 // Funciones
 void lora_init(void);
+void lora_reinit(void);
 void transmitir_datos(payload_t *paquete);
+uint8_t lora_version(void);   // diagnóstico: lee el registro de versión (0x42)
