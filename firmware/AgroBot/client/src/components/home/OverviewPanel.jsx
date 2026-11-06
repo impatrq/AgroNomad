@@ -29,29 +29,6 @@ const activityData = [
   { time: "24", value: 24 },
 ];
 
-const metrics = [
-  {
-    label: "Distancia recorrida",
-    value: "12.4 km",
-    icon: TrendingUp,
-  },
-  {
-    label: "Tiempo en movimiento",
-    value: "3h 42m",
-    icon: Activity,
-  },
-  {
-    label: "Tiempo de reposo",
-    value: "8h 15m",
-    icon: Clock3,
-  },
-  {
-    label: "Temperatura promedio",
-    value: "38.4 °C",
-    icon: Thermometer,
-  },
-];
-
 const recentActivity = [
   {
     animal: "Lora",
@@ -186,7 +163,30 @@ function ActivityChart() {
 /*                              METRICS GRID                                  */
 /* -------------------------------------------------------------------------- */
 
-function MetricsGrid() {
+function MetricsGrid({ temperature }) {
+  const metrics = [
+    {
+      label: "Distancia recorrida",
+      value: "12.4 km",
+      icon: TrendingUp,
+    },
+    {
+      label: "Tiempo en movimiento",
+      value: "3h 42m",
+      icon: Activity,
+    },
+    {
+      label: "Tiempo de reposo",
+      value: "8h 15m",
+      icon: Clock3,
+    },
+    {
+      label: "Temperatura Actual",
+      value: temperature ? `${temperature} °C` : "—",
+      icon: Thermometer,
+    },
+  ];
+
   return (
     <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
       {metrics.map(({ label, value, icon: Icon }) => (
@@ -424,7 +424,7 @@ function OverviewCard({
 
 
 
-export default function OverviewPanel({ animals, loading, error }) {
+export default function OverviewPanel({ animals, selectedAnimal, loading, error }) {
   return (
     <div id="overview-section" className="h-full rounded-[28px] border border-green-200 bg-white p-6 shadow-sm">
       <h3 className="text-xl font-semibold">Visión general</h3>
@@ -445,7 +445,7 @@ export default function OverviewPanel({ animals, loading, error }) {
 
       {/* Metrics */}
       <div className="mb-5">
-        <MetricsGrid />
+        <MetricsGrid temperature={selectedAnimal?.temp?.trim()} />
       </div>
     </div>
   )

@@ -99,7 +99,12 @@ export default function Home({ onNavigate }) {
           />
 
           <div className="grid items-stretch gap-6 xl:grid-cols-[1.5fr_0.9fr]">
-            <OverviewPanel animals={animals} loading={loading} error={error} />
+            <OverviewPanel
+              animals={animals}
+              selectedAnimal={selectedAnimal}
+              loading={loading}
+              error={error}
+            />
             <AnimalDetailsPanel
               selectedAnimal={selectedAnimal}
               onNavigate={onNavigate}
