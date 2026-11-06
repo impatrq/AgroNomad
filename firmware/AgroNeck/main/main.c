@@ -1,5 +1,5 @@
 // RTOS VERSION
-// DEPENDENCIAS
+// !! DEPENDENCIAS !!
 #include <sys/time.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -16,14 +16,14 @@
 #include "mpumlx.h"     // Librería para el sensor de movimiento MPU6050
 #include "lm35.h"       // Librería para el sensor de temperatura LM35
 
-// PARAMETROS RTOS
+// !! PARAMETROS Y VARIABLES RTOS !!
 #define SENSOR_PERIOD_MS   5000   // cada cuánto muestrear
 #define POWER_PERIOD_MS    60000  // cada cuánto revisar el temporizador del mosfet
 #define LORA_QUEUE_LEN     4      // paquetes en buffer
 
 static QueueHandle_t lora_queue = NULL;
 
-// PARAMETROS AJUSTABLES Y DEFINICIONES DE MAIN
+// !! PARAMETROS AJUSTABLES Y DEFINICIONES DE MAIN !!
 // MODO SLEEP
 #define WAKEUP_GPIO     27 // GPIO que despierta del modo sleep 
 #define WAKEUP_LEVEL    1  // Activarse con nivel alto/flanco ascendente
@@ -66,3 +66,5 @@ mlx90614_data_t mlx_data;
 
 // Declara los estados de los MOSFETs
 #define MOSFET_SWITCH_ENABLED 1
+
+// !! FUNCIONES !!
