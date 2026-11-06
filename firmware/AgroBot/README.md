@@ -168,6 +168,8 @@ Inicializa todo en este orden:
 |---|---|
 | `GET /api/animals` | Refresca y devuelve los animales desde PostgreSQL. |
 | `GET /api/yards` | Refresca y devuelve los limites de los campos. |
+| `POST /api/yards` | Crea un yard con un poligono definido por coordenadas. |
+| `PUT /api/yards/:id` | Actualiza el nombre y el poligono de un yard existente. |
 | `GET /api/status` | Devuelve `status: ok` y la cantidad de animales. |
 | `POST /api/animals/rename` | Cambia el nombre de un animal. |
 

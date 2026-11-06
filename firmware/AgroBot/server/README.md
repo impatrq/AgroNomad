@@ -54,7 +54,13 @@ Ejemplo de payload aceptado:
 | `GET /api/animals` | Devuelve los animales con su última posición y temperatura. |
 | `POST /api/animals/rename` | Cambia el nombre de un animal usando `id` y `name`. |
 | `GET /api/yards` | Devuelve los límites de los campos en formato de coordenadas. |
+| `POST /api/yards` | Crea un yard con un nombre y un polígono de coordenadas. |
+| `PUT /api/yards/:id` | Actualiza el nombre y el polígono de un yard existente. |
 | `GET /api/status` | Devuelve el estado del servidor y la cantidad de animales. |
+
+Las rutas para crear y actualizar yards aceptan `positions` como una lista de pares
+`[latitud, longitud]`; cada polígono debe tener al menos tres puntos distintos y ser válido
+según PostGIS.
 
 ## Base de datos
 

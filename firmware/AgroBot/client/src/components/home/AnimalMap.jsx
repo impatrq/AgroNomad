@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import { CircleMarker, MapContainer, Polygon, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { hasValidAnimalPosition } from '../../lib/utils'
 
 function FitAnimalPositions({ animals }) {
@@ -62,13 +62,19 @@ export default function AnimalMap({
         <FitAnimalPositions animals={positionedAnimals} />
 
         {yardBoundaries.map((boundary) => (
-          <Polyline
+          <Polygon
             key={boundary.name}
             positions={boundary.positions}
-            pathOptions={{ color: '#56eb2575', weight: 2, opacity: 0.65 , dashArray: '4 6'}}
+            pathOptions={{
+              color: '#16a34a',
+              weight: 2,
+              opacity: 0.8,
+              fillColor: '#22c55e',
+              fillOpacity: 0,
+            }}
           >
             <Tooltip>{boundary.name}</Tooltip>
-          </Polyline>
+          </Polygon>
         ))}
 
         {historyPath.length > 1 && (

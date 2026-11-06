@@ -221,10 +221,17 @@ export async function listYards() {
     )
 
     const limitsField = {}
+    const yards = []
 
     for (const yard of result.rows) {
       const parsedBoundary =
         typeof yard.boundary === 'string' ? JSON.parse(yard.boundary) : yard.boundary
+
+      const ring = parsedBoundary?.coordinates?.[0]
+      const positions = Array.isArray(ring)
+        ? ring.slice(0, -1).map(([lng, lat]) => [Number(lat), Number(lng)])
+        : []
+      yards.push({ id: yard.id, name: yard.name, positions })
 
       const mapped = polygonToLimitMap(yard.name, parsedBoundary)
       if (mapped) {
@@ -232,7 +239,69 @@ export async function listYards() {
       }
     }
 
-    return limitsField
+    return { yards, limitsField }
+  } finally {
+    client.release()
+  }
+}
+
+function positionsToWkt(positions) {
+  const coordinates = positions.map(([lat, lng]) => `${lng} ${lat}`)
+  coordinates.push(coordinates[0])
+  return `POLYGON((${coordinates.join(', ')}))`
+}
+
+export async function createYard(name, positions) {
+  await initializeDatabase()
+  const client = await getDb().connect()
+
+  try {
+    const userId = await getDemoUserId(client)
+    const polygon = positionsToWkt(positions)
+    const validity = await client.query(
+      'SELECT ST_IsValidReason(ST_GeomFromText($1, 4326)) AS reason',
+      [polygon]
+    )
+    if (validity.rows[0].reason !== 'Valid Geometry') {
+      return { invalidReason: validity.rows[0].reason }
+    }
+
+    const result = await client.query(
+      `INSERT INTO yards (user_id, name, boundary)
+       VALUES ($1, $2, ST_GeomFromText($3, 4326))
+       RETURNING id, name`,
+      [userId, name, polygon]
+    )
+    return { yard: { ...result.rows[0], positions } }
+  } finally {
+    client.release()
+  }
+}
+
+export async function updateYardBoundary(id, name, positions) {
+  await initializeDatabase()
+  const client = await getDb().connect()
+
+  try {
+    const userId = await getDemoUserId(client)
+    const polygon = positionsToWkt(positions)
+    const validity = await client.query(
+      'SELECT ST_IsValidReason(ST_GeomFromText($1, 4326)) AS reason',
+      [polygon]
+    )
+    if (validity.rows[0].reason !== 'Valid Geometry') {
+      return { invalidReason: validity.rows[0].reason }
+    }
+
+    const result = await client.query(
+      `UPDATE yards
+       SET name = $1, boundary = ST_GeomFromText($2, 4326)
+       WHERE id = $3 AND user_id = $4
+       RETURNING id, name`,
+      [name, polygon, id, userId]
+    )
+    if (result.rowCount === 0) return null
+    return { yard: { ...result.rows[0], positions } }
   } finally {
     client.release()
   }
