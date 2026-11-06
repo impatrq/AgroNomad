@@ -1,3 +1,6 @@
+export const ANIMAL_MOVEMENT_THRESHOLD_METERS = 5
+export const ANIMAL_REST_DELAY_MS = 60_000
+
 export function hasValidAnimalPosition(animal) {
   return Number.isFinite(animal?.lat) && Number.isFinite(animal?.lng) &&
     animal.lat !== 0 && animal.lng !== 0

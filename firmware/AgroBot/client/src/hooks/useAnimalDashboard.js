@@ -1,7 +1,67 @@
 // src/hooks/useAnimalDashboard.js
 import { useEffect, useRef, useState } from 'react'
 import { apiUrl, getAnimalsWsUrl} from '../lib/api'
-import { hasValidAnimalPosition, normalizeBoundaryGroups } from '../lib/utils'
+import {
+  ANIMAL_MOVEMENT_THRESHOLD_METERS,
+  ANIMAL_REST_DELAY_MS,
+  hasValidAnimalPosition,
+  normalizeBoundaryGroups,
+} from '../lib/utils'
+
+function getDistanceMeters(lat1, lng1, lat2, lng2) {
+  const toRadians = (degrees) => (degrees * Math.PI) / 180
+  const latitudeDifference = toRadians(lat2 - lat1)
+  const longitudeDifference = toRadians(lng2 - lng1)
+  const haversine =
+    Math.sin(latitudeDifference / 2) ** 2 +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(longitudeDifference / 2) ** 2
+
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+}
+
+function updateAnimalActivity(activityByAnimal, animal, timestamp) {
+  if (!animal.hasPosition) {
+    return { movementStartedAt: null, lastMovementAt: null, quietSince: null }
+  }
+
+  const previous = activityByAnimal.get(animal.id)
+  if (!previous) {
+    const initialActivity = {
+      anchorLat: animal.lat,
+      anchorLng: animal.lng,
+      quietSince: timestamp,
+      movementStartedAt: null,
+      lastMovementAt: null,
+    }
+    activityByAnimal.set(animal.id, initialActivity)
+    return initialActivity
+  }
+
+  const movedDistance = getDistanceMeters(
+    previous.anchorLat,
+    previous.anchorLng,
+    animal.lat,
+    animal.lng,
+  )
+  if (movedDistance >= ANIMAL_MOVEMENT_THRESHOLD_METERS) {
+    const movementContinues =
+      previous.lastMovementAt !== null &&
+      timestamp - previous.lastMovementAt < ANIMAL_REST_DELAY_MS
+    const updatedActivity = {
+      anchorLat: animal.lat,
+      anchorLng: animal.lng,
+      quietSince: null,
+      movementStartedAt: movementContinues ? previous.movementStartedAt : timestamp,
+      lastMovementAt: timestamp,
+    }
+    activityByAnimal.set(animal.id, updatedActivity)
+    return updatedActivity
+  }
+
+  return previous
+}
 
 // Derive ws:// or wss:// from your apiUrl so it works in dev & prod 
 // For example in dev ==> ws://localhost:3000/ws/animals
@@ -15,6 +75,7 @@ export default function useAnimalDashboard() {
   const [error, setError] = useState(null)
   const selectedAnimalRef = useRef(null)
   const missingPositionIdsRef = useRef(new Set())
+  const animalActivityRef = useRef(new Map())
 
   useEffect(() => {
     selectedAnimalRef.current = selectedAnimal
@@ -62,17 +123,23 @@ export default function useAnimalDashboard() {
         return
       }
 
+      const timestamp = Date.now()
       const normalized = rawAnimals.map((item) => {
         const lat = Number(item.lat ?? 0)
         const lng = Number(item.lng ?? 0)
 
-        return {
+        const animal = {
           id: String(item.id ?? ''),
           name: item.name ?? `Animal ${item.id ?? ''}`,
           lat,
           lng,
           hasPosition: item.hasPosition !== false && hasValidAnimalPosition({ lat, lng }),
           temp: String(item.temp ?? ''),
+        }
+
+        return {
+          ...animal,
+          ...updateAnimalActivity(animalActivityRef.current, animal, timestamp),
         }
       })
 
@@ -93,9 +160,9 @@ export default function useAnimalDashboard() {
       setAnimals(normalized)
 
       if (normalized.length > 0) {
-        const stillSelected = normalized.find((a) => a.id === previouslySelectedId)
         const firstWithPosition = normalized.find(hasValidAnimalPosition)
-        setSelectedAnimal(stillSelected || firstWithPosition || normalized[0])
+        const updatedSelection = normalized.find((animal) => animal.id === previouslySelectedId)
+        setSelectedAnimal(updatedSelection || firstWithPosition || normalized[0])
       } else {
         setSelectedAnimal(null)
       }

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -8,6 +9,55 @@ import {
   Thermometer,
   TrendingUp,
 } from "lucide-react";
+import { ANIMAL_REST_DELAY_MS, hasValidAnimalPosition } from "../../lib/utils";
+
+function formatDuration(durationMs) {
+  const totalSeconds = Math.floor(Math.max(durationMs, 0) / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${hours}h ${minutes}m ${seconds}s`;
+}
+
+function getAnimalActivityTimers(animal, now) {
+  if (!animal || now === 0 || !hasValidAnimalPosition(animal)) {
+    return { movementTime: "—", restTime: "—" };
+  }
+
+  if (animal.lastMovementAt == null) {
+    if (animal.quietSince == null) {
+      return { movementTime: "—", restTime: "—" };
+    }
+
+    const restStartsAt = animal.quietSince + ANIMAL_REST_DELAY_MS;
+    return {
+      movementTime: "0h 0m 0s",
+      restTime: now >= restStartsAt ? formatDuration(now - restStartsAt) : "—",
+    };
+  }
+
+  const restStartsAt = animal.lastMovementAt + ANIMAL_REST_DELAY_MS;
+  const isResting = now >= restStartsAt;
+  const movementDuration = isResting
+    ? animal.lastMovementAt - animal.movementStartedAt
+    : now - animal.movementStartedAt;
+
+  return {
+    movementTime: formatDuration(movementDuration),
+    restTime: isResting ? formatDuration(now - restStartsAt) : "—",
+  };
+}
+
+function useCurrentTime() {
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  return now;
+}
 
 /* -------------------------------------------------------------------------- */
 /*                                  DATA                                      */
@@ -163,7 +213,7 @@ function ActivityChart() {
 /*                              METRICS GRID                                  */
 /* -------------------------------------------------------------------------- */
 
-function MetricsGrid({ temperature }) {
+function MetricsGrid({ temperature, movementTime, restTime }) {
   const metrics = [
     {
       label: "Distancia recorrida",
@@ -172,12 +222,12 @@ function MetricsGrid({ temperature }) {
     },
     {
       label: "Tiempo en movimiento",
-      value: "3h 42m",
+      value: movementTime,
       icon: Activity,
     },
     {
       label: "Tiempo de reposo",
-      value: "8h 15m",
+      value: restTime,
       icon: Clock3,
     },
     {
@@ -425,6 +475,9 @@ function OverviewCard({
 
 
 export default function OverviewPanel({ animals, selectedAnimal, loading, error }) {
+  const now = useCurrentTime();
+  const { movementTime, restTime } = getAnimalActivityTimers(selectedAnimal, now);
+
   return (
     <div id="overview-section" className="h-full rounded-[28px] border border-green-200 bg-white p-6 shadow-sm">
       <h3 className="text-xl font-semibold">Visión general</h3>
@@ -445,7 +498,11 @@ export default function OverviewPanel({ animals, selectedAnimal, loading, error 
 
       {/* Metrics */}
       <div className="mb-5">
-        <MetricsGrid temperature={selectedAnimal?.temp?.trim()} />
+        <MetricsGrid
+          temperature={selectedAnimal?.temp?.trim()}
+          movementTime={movementTime}
+          restTime={restTime}
+        />
       </div>
     </div>
   )
