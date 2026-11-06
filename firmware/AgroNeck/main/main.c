@@ -127,3 +127,9 @@ void read_mlx90614() {
         ESP_LOGE("MLX90614","Error leyendo datos: %s", esp_err_to_name(ret));
     }
 }
+
+void internal_temp() {
+    ESP_LOGI("Temp.Calc","Calculando temperatura interna...");
+    temp_interna = (mlx_data.mlx_object_temp-15) + (mlx_data.mlx_object_temp-15 - (lm_amb_temp)) * H_COEFICIENTE;
+    ESP_LOGI("Temp.Calc","Temperatura interna estimada: %.2f °C", temp_interna); 
+}
