@@ -20,32 +20,51 @@ function formatDuration(durationMs) {
   return `${hours}h ${minutes}m ${seconds}s`;
 }
 
+function getDurationSinceMidnight(start, end, dayStart, now) {
+  const clippedStart = Math.max(start, dayStart);
+  const clippedEnd = Math.min(end, now);
+  return Math.max(clippedEnd - clippedStart, 0);
+}
+
 function getAnimalActivityTimers(animal, now) {
-  if (!animal || now === 0 || !hasValidAnimalPosition(animal)) {
+  const zero = "0h 0m 0s";
+  if (!animal || !hasValidAnimalPosition(animal)) {
     return { movementTime: "—", restTime: "—" };
   }
 
+  const dayStart = new Date(now);
+  dayStart.setHours(0, 0, 0, 0);
+
   if (animal.lastMovementAt == null) {
     if (animal.quietSince == null) {
-      return { movementTime: "—", restTime: "—" };
+      return { movementTime: zero, restTime: zero };
     }
 
     const restStartsAt = animal.quietSince + ANIMAL_REST_DELAY_MS;
     return {
-      movementTime: "0h 0m 0s",
-      restTime: now >= restStartsAt ? formatDuration(now - restStartsAt) : "—",
+      movementTime: zero,
+      restTime: now >= restStartsAt
+        ? formatDuration(getDurationSinceMidnight(restStartsAt, now, dayStart.getTime(), now))
+        : zero,
     };
   }
 
   const restStartsAt = animal.lastMovementAt + ANIMAL_REST_DELAY_MS;
   const isResting = now >= restStartsAt;
-  const movementDuration = isResting
-    ? animal.lastMovementAt - animal.movementStartedAt
-    : now - animal.movementStartedAt;
+  const movementEnd = isResting ? restStartsAt : now;
+  const movementDuration = getDurationSinceMidnight(
+    animal.movementStartedAt,
+    movementEnd,
+    dayStart.getTime(),
+    now,
+  );
+  const restDuration = isResting
+    ? getDurationSinceMidnight(restStartsAt, now, dayStart.getTime(), now)
+    : 0;
 
   return {
     movementTime: formatDuration(movementDuration),
-    restTime: isResting ? formatDuration(now - restStartsAt) : "—",
+    restTime: formatDuration(restDuration),
   };
 }
 
