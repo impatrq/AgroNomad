@@ -570,9 +570,10 @@ export async function renameAnimal(id, newName) {
        FROM animals a
        LEFT JOIN animal_devices ad ON ad.animal_id = a.id AND ad.unassigned_at IS NULL
        LEFT JOIN devices d ON d.id = ad.device_id
-       WHERE a.user_id = $1 AND (a.id = $2 OR d.device_uid = $3)
+       WHERE a.user_id = $1 AND (a.id::text = $2 OR d.device_uid = $2)
+       ORDER BY CASE WHEN d.device_uid = $2 THEN 0 ELSE 1 END
        LIMIT 1`,
-      [userId, Number(id), String(id)]
+      [userId, String(id)]
     )
 
     if (animalResult.rows.length === 0) {
