@@ -2,6 +2,13 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
+/*
+funcionamiento de este rtos segun lo entendido:
+! senso y envio al mismo tiempo
+1. cuando senso, meto los datos en una cola
+2. cuando hay algo en la cola, envio esos datos x lora
+*/
+
 /* ---------- Parámetros ajustables ---------- */
 #define SENSOR_PERIOD_MS   5000   // cada cuánto muestrear
 #define POWER_PERIOD_MS    60000  // cada cuánto revisar el temporizador del mosfet
@@ -18,7 +25,7 @@ typedef struct {
 static QueueHandle_t lora_queue = NULL;
 
 /* ============================================================
- *  sensor_task  — lee todos los sensores y empuja un paquete
+ *  sensor_task  — lee todos los sensores y empuja un paquete a la cola
  * ============================================================ */
 static void sensor_task(void *pvParameters)
 {
