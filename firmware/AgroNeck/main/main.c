@@ -1,29 +1,25 @@
-// RTOS VERSION
-// !! DEPENDENCIAS !!
+// DEPENDENCIAS
+#include <stdio.h>
 #include <sys/time.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "esp_log.h"
+#include "esp_log.h"    
+#include "esp_system.h"
 #include "esp_sleep.h"
+#include "esp_timer.h"               
+#include "esp_private/esp_clk.h"     
+#include "esp_adc/adc_oneshot.h" 
 #include "driver/gpio.h"
+#include "driver/rtc_io.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
-// COMPONENTES
 #include "lora.h"       // Librería para el módulo LoRa
 #include "neo6m.h"      // Librería para el módulo GPS NEO-6MV2
 #include "mpumlx.h"     // Librería para el sensor de movimiento MPU6050
 #include "lm35.h"       // Librería para el sensor de temperatura LM35
 
-// !! PARAMETROS Y VARIABLES RTOS !!
-#define SENSOR_PERIOD_MS   5000   // cada cuánto muestrear
-#define POWER_PERIOD_MS    60000  // cada cuánto revisar el temporizador del mosfet
-#define LORA_QUEUE_LEN     4      // paquetes en buffer
-
-static QueueHandle_t lora_queue = NULL;
-
-// !! PARAMETROS AJUSTABLES Y DEFINICIONES DE MAIN !!
 // MODO SLEEP
 #define WAKEUP_GPIO     27 // GPIO que despierta del modo sleep 
 #define WAKEUP_LEVEL    1  // Activarse con nivel alto/flanco ascendente
@@ -65,17 +61,39 @@ float temp_interna;
 mlx90614_data_t mlx_data; 
 
 // Declara los estados de los MOSFETs
+// DIAGNÓSTICO: 0 = no tocar los MOSFETs (prueba de causa raíz)
 #define MOSFET_SWITCH_ENABLED 1
 
-// !! FUNCIONES !!
+void aplica_estado_mosfet() {
+    ESP_LOGI("MOSFETS","Aplicando estado %d...", estado_mosfet);
+#if !MOSFET_SWITCH_ENABLED
+    ESP_LOGW("MOSFETS","[DIAG] Switch de MOSFETs DESHABILITADO: no se toca la alimentacion");
+    return;
+#endif
+    if (estado_mosfet) { // Estado inicial: 2+3
+        gpio_set_level(MOSFET1, 1);
+        gpio_set_level(MOSFET4, 1);
+        vTaskDelay(pdMS_TO_TICKS(10));
+        gpio_set_level(MOSFET2, 0);
+        gpio_set_level(MOSFET3, 0);
+    } else { // Estado secundario: 1+4
+        gpio_set_level(MOSFET2, 1);
+        gpio_set_level(MOSFET3, 1);
+        vTaskDelay(pdMS_TO_TICKS(10));
+        gpio_set_level(MOSFET1, 0);
+        gpio_set_level(MOSFET4, 0);
+    }
+}
 
-// !! MOSFETS !!
 // Inicialización de Salida de MOSFETs
 void init_mosfet_gpios() {
+    gpio_deep_sleep_hold_dis();
+
     gpio_hold_dis(MOSFET1);
     gpio_hold_dis(MOSFET2);
     gpio_hold_dis(MOSFET3);
     gpio_hold_dis(MOSFET4);
+
 
     gpio_config_t io_config = {
         .intr_type = GPIO_INTR_DISABLE,
@@ -86,25 +104,56 @@ void init_mosfet_gpios() {
     };
     
     gpio_config(&io_config);
+
 }
 
-void aplica_estado_mosfet() {
-    ESP_LOGI("MOSFETS","Aplicando estado %d...", estado_mosfet);
-    gpio_set_level(MOSFET1, 1);
-    gpio_set_level(MOSFET4, 1);
-    vTaskDelay(pdMS_TO_TICKS(10));
-    gpio_set_level(MOSFET2, 0);
-    gpio_set_level(MOSFET3, 0);
-    
-    // mantener estado al entrar en deep sleep
-    // gpio_hold_en(MOSFET1);
-    // gpio_hold_en(MOSFET2);
-    // gpio_hold_en(MOSFET3);
-    // gpio_hold_en(MOSFET4);
-    // gpio_deep_sleep_hold_en();  
+// Switcheo de MOSFETs (alternar entre baterías)
+void switch_mosfet() {
+    ESP_LOGI("MOSFETS","Switcheando mosfets...");
+    estado_mosfet = !estado_mosfet; 
+    aplica_estado_mosfet();
 }
 
-// !! TEMPERATURA !!
+uint64_t tiempo_medido(void) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (uint64_t)tv.tv_sec;
+}
+
+void hora_actual() {
+    uint64_t tiempo_actual = tiempo_medido();
+
+    // Si es el primer encendido físico del equipo
+    if (!sistema_inicializado) {
+        tiempo_switch = tiempo_actual;
+        sistema_inicializado = true;
+        aplica_estado_mosfet();
+        ESP_LOGI("MAIN", "Tiempo base inicializado: %llu s", tiempo_switch);
+        return;
+    }
+
+    uint64_t transcurrido = (tiempo_actual >= tiempo_switch) ? (tiempo_actual - tiempo_switch) : 0;
+    ESP_LOGI("MOSFETS", "Tiempo actual: %llu s | Ultimo switch: %llu s | Transcurrido: %llu s", 
+             tiempo_actual, tiempo_switch, transcurrido);
+
+    // Evalúa si ya pasó el tiempo necesario para cambiar de batería
+    if (transcurrido >= TIEMPO_CAMBIO_BATS) {
+        switch_mosfet();
+        lora_reinit();
+        tiempo_switch = tiempo_actual; // Se actualiza el tiempo base con la hora actual
+    } 
+}
+
+
+
+
+
+
+
+// ============================================================
+// FUNCIONES DE LECTURA DE SENSORES
+// ============================================================
+
 void read_lm35() {
     ESP_LOGI("read_lm35","Intentando leer LM35...");
     lm35_data_t data;
@@ -117,23 +166,6 @@ void read_lm35() {
     }
 }
 
-void read_mlx90614() {
-    ESP_LOGI("MLX90614","Intentando leer MLX90614...");
-    esp_err_t ret = mlx90614_read(&mlx_data, I2C_NUM_0);
-    if (ret == ESP_OK) {
-        ESP_LOGI("MLX90614","Temperatura objeto: %.2f °C", mlx_data.mlx_object_temp);
-    } else {
-        ESP_LOGE("MLX90614","Error leyendo datos: %s", esp_err_to_name(ret));
-    }
-}
-
-void internal_temp() {
-    ESP_LOGI("Temp.Calc","Calculando temperatura interna...");
-    temp_interna = (mlx_data.mlx_object_temp-15) + (mlx_data.mlx_object_temp-15 - (lm_amb_temp)) * H_COEFICIENTE;
-    ESP_LOGI("Temp.Calc","Temperatura interna estimada: %.2f °C", temp_interna); 
-}
-
-// !! GPS !!
 void read_gps() {
     ESP_LOGI("GPS","Intentando leer GPS...");
     raw_nmea(&latitude, &longitude, &lat_hemisphere, &lon_hemisphere, &velocidad);
@@ -150,21 +182,320 @@ void read_gps() {
     }
 }
 
-
-/*
-FUNCIONAMIENTO RTOS
-
-static void nombre_funcion(void *pvParameters){
-funcion
+void read_mpu6050() {
+    ESP_LOGI("MPU6050","Intentando leer MPU6050...");
+    mpu6050_data_t data;
+    esp_err_t ret = mpu6050_read(&data, I2C_NUM_0);
+    if (ret == ESP_OK) {
+        ESP_LOGI("MPU6050","Aceleración - X: %d, Y: %d, Z: %d", data.ax, data.ay, data.az);
+        ESP_LOGI("MPU6050","Giroscopio - X: %d, Y: %d, Z: %d", data.gx, data.gy, data.gz);
+    } else {
+        ESP_LOGE("MPU6050","Error leyendo datos: %s", esp_err_to_name(ret));
+    }
 }
 
-void app_main(void)
-{
-    inits();
+void read_mlx90614() {
+    ESP_LOGI("MLX90614","Intentando leer MLX90614...");
+    esp_err_t ret = mlx90614_read(&mlx_data, I2C_NUM_0);
+    if (ret == ESP_OK) {
+        ESP_LOGI("MLX90614","Temperatura objeto: %.2f °C", mlx_data.mlx_object_temp);
+    } else {
+        ESP_LOGE("MLX90614","Error leyendo datos: %s", esp_err_to_name(ret));
+    }
+}
 
+
+
+
+
+
+// ============================================================
+// FUNCIONES DE CÁLCULO Y PROCESAMIENTO DE DATOS
+// ============================================================
+void internal_temp() {
+    ESP_LOGI("Temp.Calc","Calculando temperatura interna...");
+    temp_interna = (mlx_data.mlx_object_temp-15) + (mlx_data.mlx_object_temp-15 - (lm_amb_temp)) * H_COEFICIENTE;
+    ESP_LOGI("Temp.Calc","Temperatura interna estimada: %.2f °C", temp_interna); 
+}
+
+void sensar_enviar(void *pvParameters){ 
+    ESP_LOGI("func_sensar_enviar","Iniciando buses y perifericos.");
+    gps_starting();
+    init_i2c();
+    mpu6050_init(I2C_NUM_0);
+    lm35_init();
+    init_mosfet_gpios();
+    lora_init();
+
+    ESP_LOGI("func_sensar_enviar","Leyendo todos los sensores...");
+    read_gps();
+    read_mpu6050();
+    read_mlx90614();
+    read_lm35();
+    internal_temp();
+
+    ESP_LOGI("func_sensar_enviar","Empaquetando y enviando...");
+    payload_t paquete;
+    paquete.id_collar = 122;
+    paquete.temperatura = temp_interna;
+    paquete.latitud = (int32_t)(lat_signed * 1000000.0);
+    paquete.longitud = (int32_t)(lon_signed * 1000000.0);
+
+    transmitir_datos(&paquete);
+
+    // Evalúa y aplica el cambio de batería
+    hora_actual();
+    // Congelar estado de pines para Deep Sleep
+    ESP_LOGI("func_sensar_enviar","Congelando MOSFETs...");
+    gpio_hold_en(MOSFET1);
+    gpio_hold_en(MOSFET2);
+    gpio_hold_en(MOSFET3);
+    gpio_hold_en(MOSFET4);
+    gpio_deep_sleep_hold_en(); 
+
+    mpu6050_enable_wom(I2C_NUM_0, MPU6050_THRESHOLD);
+
+    ESP_LOGI("func_sensar_enviar","Limpiando INT MPU.");
+    mpu6050_clear_int(I2C_NUM_0); 
+
+    ESP_LOGI("func_sensar_enviar","Preparando interrupción antes de ir a dormir...");
+    esp_sleep_enable_ext0_wakeup(WAKEUP_GPIO, WAKEUP_LEVEL);
+
+    ESP_LOGI("func_sensar_enviar","Entrando en deep sleep...");
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    esp_deep_sleep_start();
+
+    vTaskDelete(NULL);
+}
+
+
+
+
+
+
+
+
+
+
+
+// ============================================================
+// TAREAS Y COLA DEL FREERTOS
+// ============================================================
+
+/*
+Funcionamiento RTOS:
+
+-- Senso y envio al mismo tiempo --
+
+1. cuando senso, meto los datos en una cola
+2. cuando hay algo en la cola, envio esos datos x lora
+
+*/
+
+/* ---------- Parámetros ajustables ---------- */
+#define SENSOR_PERIOD_MS   5000   // cada cuánto muestrear
+#define POWER_PERIOD_MS    60000  // cada cuánto revisar el temporizador del mosfet
+#define LORA_QUEUE_LEN     4      // paquetes en buffer
+
+/* ---------- Tipo de mensaje que se pasa por la cola ---------- */
+typedef struct {
+    int32_t id_collar;
+    float   temperatura;
+    int32_t latitud;
+    int32_t longitud;
+} lora_msg_t;
+
+static QueueHandle_t lora_queue = NULL;
+
+/* ============================================================
+ *  sensor_task  — lee todos los sensores y empuja un paquete a la cola
+ * ============================================================ */
+static void sensor_task(void *pvParameters)
+{
+    TickType_t last_wake = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(SENSOR_PERIOD_MS);
+
+    while (1) {
+        ESP_LOGI("SENSOR", "Leyendo todos los sensores...");
+        read_gps();
+        read_mpu6050();
+        read_mlx90614();
+        read_lm35();
+
+        internal_temp();
+
+        lora_msg_t msg = {
+            .id_collar   = 122,
+            .temperatura = temp_interna,
+            .latitud     = (int32_t)(lat_signed * 1000000.0),
+            .longitud    = (int32_t)(lon_signed * 1000000.0),
+        };
+
+        // No bloqueante: descarta la muestra si la cola está llena
+        // en lugar de detener el bucle de adquisición
+        if (xQueueSend(lora_queue, &msg, pdMS_TO_TICKS(50)) != pdTRUE) {
+            ESP_LOGW("SENSOR", "Cola llena, muestra descartada");
+        }
+
+        vTaskDelayUntil(&last_wake, period);   // muestreo periódico sin deriva
+    }
+}
+
+/* ============================================================
+ *  lora_task  — se bloquea en la cola, transmite cuando llega dato
+ * ============================================================ */
+static void lora_task(void *pvParameters)
+{
+    lora_msg_t msg;
+    while (1) {
+        if (xQueueReceive(lora_queue, &msg, portMAX_DELAY) == pdTRUE) {
+            payload_t paquete = {
+                .id_collar   = msg.id_collar,
+                .temperatura = msg.temperatura,
+                .latitud     = msg.latitud,
+                .longitud    = msg.longitud,
+            };
+            ESP_LOGI("LORA", "Transmitiendo paquete...");
+            transmitir_datos(&paquete);
+        }
+    }
+}
+
+/* ============================================================
+ *  power_task  — temporizador independiente de mosfet / switch de batería
+ * ============================================================ */
+static void power_task(void *pvParameters)
+{
+    while (1) {
+        ESP_LOGI("POWER", "Evaluando switch de baterías...");
+        hora_actual();                     // bloquea ~1 s si hay switch
+        vTaskDelay(pdMS_TO_TICKS(POWER_PERIOD_MS));
+    }
+}
+
+/* ============================================================
+ *  freertos_init — inicializa hardware una vez, luego crea las tareas
+ * ============================================================ */
+void freertos_init(void)
+{
+    ESP_LOGI("MAIN", "Inicializando hardware...");
+    
+    gps_starting();
+    init_i2c();
+    mpu6050_init(I2C_NUM_0);
+    lm35_init();
+    init_mosfet_gpios();
+    lora_init();
+
+    ESP_LOGI("MAIN", "Inicializando FREERTOS TASK AND QUEUE...");
     lora_queue = xQueueCreate(LORA_QUEUE_LEN, sizeof(lora_msg_t));
     configASSERT(lora_queue);
 
-    xTaskCreate(nombre_funcion, "nombre", 4096, NULL, 5, NULL);    
+    xTaskCreate(sensor_task, "sensor", 4096, NULL, 5, NULL);
+    xTaskCreate(lora_task,   "lora",   4096, NULL, 4, NULL);
+    xTaskCreate(power_task,  "power",  2048, NULL, 2, NULL);
 }
-*/
+
+//create State to change between implementing freertos or using a loop.
+#define FREERTOS_IMPLEMENTATION 1 
+
+//Create State to change between send-everytime and send-on-motion. 
+#define SEND_EVERYTIME 1
+
+// MAIN
+void app_main(void)
+{   
+
+    #if FREERTOS_IMPLEMENTATION
+        freertos_init();
+        while(1) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+    #endif
+
+    #if !SEND_EVERYTIME
+    ESP_LOGI("MAIN","Comenzando los procesos principales");
+    esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
+
+    // Despierto por razones que no son Wake-On-Motion (Primer arranque / Reset)
+    if (cause != ESP_SLEEP_WAKEUP_EXT0) { 
+        ESP_LOGI("MAIN_fwu","Primer arranque, inicializando buses.");
+        init_i2c(); 
+        mpu6050_init(I2C_NUM_0);
+        mpu6050_enable_wom(I2C_NUM_0, MPU6050_THRESHOLD); 
+        mpu6050_clear_int(I2C_NUM_0);
+
+        ESP_LOGI("MAIN_fwu","Inicio y congelo los mosfets.");
+        init_mosfet_gpios();
+        hora_actual();
+        
+        gpio_hold_en(MOSFET1);
+        gpio_hold_en(MOSFET2);
+        gpio_hold_en(MOSFET3);
+        gpio_hold_en(MOSFET4);
+        gpio_deep_sleep_hold_en(); // <--- OBLIGATORIO PARA DEEP SLEEP
+
+        while(gpio_get_level(WAKEUP_GPIO) == 1) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+        
+        ESP_LOGI("MAIN_fwu","Preparo interrupción.");
+        esp_sleep_enable_ext0_wakeup(WAKEUP_GPIO, WAKEUP_LEVEL); 
+        
+        ESP_LOGI("MAIN_fwu","Entrando en deep sleep...");
+        vTaskDelay(pdMS_TO_TICKS(100));
+        
+        esp_deep_sleep_start(); 
+        return;
+    }
+  
+    // Despierto de Deep Sleep por movimiento (EXT0)
+    xTaskCreate(sensar_enviar, "sensar_enviar_task", 4096, NULL, 5, NULL);    
+
+    #endif
+    #if SEND_EVERYTIME  
+
+    //Función utilizada para probar el sistema sin Deep-Sleep
+    ESP_LOGI("Inicializacion","Iniciando buses y perifericos.");
+    init_mosfet_gpios();
+    aplica_estado_mosfet();
+    vTaskDelay(pdMS_TO_TICKS(50));
+
+    gps_starting();
+    init_i2c();
+    mpu6050_init(I2C_NUM_0);
+    lm35_init();
+    lora_init();
+
+    while(1) {
+
+        ESP_LOGI("Lectura","Leyendo todos los sensores...");
+        read_gps();
+        read_mpu6050();
+        read_mlx90614();
+        read_lm35();
+        internal_temp();
+
+        ESP_LOGI("LoRa","Empaquetando y enviando...");
+        payload_t paquete;
+        paquete.id_collar = 122;
+        paquete.temperatura = temp_interna;
+        paquete.latitud = (int32_t)(lat_signed * 1000000.0);
+        paquete.longitud = (int32_t)(lon_signed * 1000000.0);
+
+        transmitir_datos(&paquete);
+
+        vTaskDelay(pdMS_TO_TICKS(300));
+
+        // Evalúa y aplica el cambio de batería
+        ESP_LOGI("Energía","Analizando estado de switcheo.");
+        hora_actual();
+
+        // DIAGNÓSTICO: ¿la radio sigue viva después de switchear los MOSFETs?
+        ESP_LOGW("LoRaDiag","Version 0x42 post-MOSFET: 0x%02X", lora_version());
+
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
+    #endif
+}
