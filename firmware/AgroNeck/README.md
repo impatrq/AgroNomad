@@ -4,7 +4,7 @@
 
 Código del AgroNeck para la ESP32. Incluye librerías para:
 
-- LoRa - GPS - MPU6050 - MLX90614 - LM35
+- SX1278 - NEO6M - MPU6050 - MLX90614 - LM35
 
 ## Funcionando:
 
@@ -21,7 +21,7 @@ Código del AgroNeck para la ESP32. Incluye librerías para:
 
 ## Pendientes:
 
-- Implementar FreeRtos tanto en modo de envio de datos constante como en envio por wakeup due to movement(interrupt).
+- Probar Implementacion del FreeRtos tanto en modo de envio de datos constante como en envio por wakeup due to movement(interrupt).
 
 - Buscar un metodo de encriptacion para enviar la informacion de forma segura.
 
