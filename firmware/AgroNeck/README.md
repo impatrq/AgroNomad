@@ -75,3 +75,13 @@ void app_main(void)
 3. Asegurar que esp_deep_sleep_start() se llama siempre
 
 - Tu función sensar_enviar ya termina con esp_deep_sleep_start(), así que mientras se ejecute esa tarea, el ciclo se cerrará correctamente. Solo debes verificar que no haya rutas de retorno anticipado (por ejemplo, si transmitir_datos falla y decides no dormir). En el código actual no las hay, pero es buena práctica añadir un bloque finally lógico: pase lo que pase en el sensado, siempre se debe llegar a esp_deep_sleep_start().
+
+### FreeRTOS con Wake-On-Motion
+
+`FREERTOS_IMPLEMENTATION` selecciona la ruta de ejecución y `SEND_EVERYTIME` selecciona el ciclo de envío:
+
+- `FREERTOS_IMPLEMENTATION=1`, `SEND_EVERYTIME=1`: tareas periódicas de sensores, LoRa y energía; no entra en deep sleep.
+- `FREERTOS_IMPLEMENTATION=1`, `SEND_EVERYTIME=0`: mide una vez, encola el paquete, espera a que LoRa lo transmita y luego configura el MPU6050 y EXT0 antes de entrar en deep sleep. Un arranque normal o por movimiento ejecuta el mismo ciclo; después del deep sleep el ESP32 reinicia y las tareas se crean de nuevo.
+- `FREERTOS_IMPLEMENTATION=0`: conserva la ruta anterior sin FreeRTOS.
+
+En el modo Wake-On-Motion, GPIO27 debe estar conectado a INT del MPU6050 y ser un pin RTC válido para el modelo de ESP32. El MPU debe permanecer alimentado durante el deep sleep. La configuración de `PWR_MGMT_2` mantiene activos los acelerómetros y deja en standby únicamente los giroscopios.
