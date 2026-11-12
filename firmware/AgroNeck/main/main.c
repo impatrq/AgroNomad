@@ -3,14 +3,11 @@
 #include <sys/time.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "esp_log.h"    
-#include "esp_system.h"
+#include "esp_log.h"
+#include "esp_err.h"
 #include "esp_sleep.h"
-#include "esp_timer.h"               
-#include "esp_private/esp_clk.h"     
-#include "esp_adc/adc_oneshot.h" 
+#include "esp_timer.h"
 #include "driver/gpio.h"
-#include "driver/rtc_io.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -58,7 +55,7 @@ float velocidad;
 double lat_signed;
 double lon_signed;
 
-// Variables de temperatura
+// VARIABLES DE TEMPERATURA
 float lm_amb_temp;  
 float temp_interna; 
 
@@ -162,7 +159,7 @@ void read_lm35() {
     ESP_LOGI("read_lm35","Intentando leer LM35...");
     lm35_data_t data;
     esp_err_t ret = lm35_read(&data);
-    if (ret == ESP_OK) {
+    if (ret ==  ) {
         lm_amb_temp = data.lm_amb_temp;
         ESP_LOGI("LM35","Temperatura: %.2f °C", lm_amb_temp);
     } else {
