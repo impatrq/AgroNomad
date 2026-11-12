@@ -24,6 +24,10 @@
 #define WAKEUP_GPIO     27 // GPIO que despierta del modo sleep 
 #define WAKEUP_LEVEL    1  // Activarse con nivel alto/flanco ascendente
 
+// Select the runtime independently from the transmission policy.
+#define FREERTOS_IMPLEMENTATION 1
+#define SEND_EVERYTIME 1
+
 // CONTROL DE ALIMENTACIÓN - C1+C4 o C2+C3
 #define MOSFET1 25 // GPIO del MOSFET CONTROL3
 #define MOSFET2 26 // GPIO del MOSFET CONTROL4
@@ -269,19 +273,10 @@ void sensar_enviar(void *pvParameters){
     vTaskDelete(NULL);
 }
 
-
-
-
-
-
-
-
-
-
-
 // ============================================================
 // TAREAS Y COLA DEL FREERTOS
 // ============================================================
+#if FREERTOS_IMPLEMENTATION
 
 /*
 Funcionamiento RTOS:
@@ -308,15 +303,49 @@ typedef struct {
 
 static QueueHandle_t lora_queue = NULL;
 
+#if !SEND_EVERYTIME
+static void enter_motion_deep_sleep(void)
+{
+    ESP_LOGI("SLEEP", "Preparando MPU6050 para wake-on-motion...");
+    ESP_ERROR_CHECK(mpu6050_enable_wom(I2C_NUM_0, MPU6050_THRESHOLD));
+    ESP_ERROR_CHECK(rtc_gpio_init((gpio_num_t)WAKEUP_GPIO));
+    ESP_ERROR_CHECK(rtc_gpio_set_direction((gpio_num_t)WAKEUP_GPIO, RTC_GPIO_MODE_INPUT_ONLY));
+    ESP_ERROR_CHECK(rtc_gpio_pulldown_en((gpio_num_t)WAKEUP_GPIO));
+    ESP_ERROR_CHECK(rtc_gpio_pullup_dis((gpio_num_t)WAKEUP_GPIO));
+    ESP_ERROR_CHECK(mpu6050_clear_int(I2C_NUM_0));
+
+    if (rtc_gpio_get_level((gpio_num_t)WAKEUP_GPIO) == WAKEUP_LEVEL) {
+        ESP_LOGI("SLEEP", "Esperando que la interrupcion del MPU6050 se desactive...");
+        while (rtc_gpio_get_level((gpio_num_t)WAKEUP_GPIO) == WAKEUP_LEVEL) {
+            ESP_ERROR_CHECK(mpu6050_clear_int(I2C_NUM_0));
+            vTaskDelay(pdMS_TO_TICKS(20));
+        }
+    }
+
+    ESP_ERROR_CHECK(gpio_hold_en(MOSFET1));
+    ESP_ERROR_CHECK(gpio_hold_en(MOSFET2));
+    ESP_ERROR_CHECK(gpio_hold_en(MOSFET3));
+    ESP_ERROR_CHECK(gpio_hold_en(MOSFET4));
+    gpio_deep_sleep_hold_en();
+
+    ESP_ERROR_CHECK(esp_sleep_enable_ext0_wakeup((gpio_num_t)WAKEUP_GPIO, WAKEUP_LEVEL));
+    ESP_LOGI("SLEEP", "Entrando en deep sleep; GPIO%d despertara por movimiento.", WAKEUP_GPIO);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    esp_deep_sleep_start();
+}
+#endif
+
 /* ============================================================
  *  sensor_task  — lee todos los sensores y empuja un paquete a la cola
  * ============================================================ */
 static void sensor_task(void *pvParameters)
 {
+#if SEND_EVERYTIME
     TickType_t last_wake = xTaskGetTickCount();
     const TickType_t period = pdMS_TO_TICKS(SENSOR_PERIOD_MS);
+#endif
 
-    while (1) {
+    do {
         ESP_LOGI("SENSOR", "Leyendo todos los sensores...");
         read_gps();
         read_mpu6050();
@@ -332,14 +361,24 @@ static void sensor_task(void *pvParameters)
             .longitud    = (int32_t)(lon_signed * 1000000.0),
         };
 
-        // No bloqueante: descarta la muestra si la cola está llena
-        // en lugar de detener el bucle de adquisición
-        if (xQueueSend(lora_queue, &msg, pdMS_TO_TICKS(50)) != pdTRUE) {
+        TickType_t queue_wait =
+#if SEND_EVERYTIME
+            pdMS_TO_TICKS(50);
+#else
+            portMAX_DELAY;
+#endif
+        if (xQueueSend(lora_queue, &msg, queue_wait) != pdTRUE) {
             ESP_LOGW("SENSOR", "Cola llena, muestra descartada");
         }
 
+#if SEND_EVERYTIME
         vTaskDelayUntil(&last_wake, period);   // muestreo periódico sin deriva
-    }
+#endif
+    } while (SEND_EVERYTIME);
+
+#if !SEND_EVERYTIME
+    vTaskDelete(NULL);
+#endif
 }
 
 /* ============================================================
@@ -358,6 +397,9 @@ static void lora_task(void *pvParameters)
             };
             ESP_LOGI("LORA", "Transmitiendo paquete...");
             transmitir_datos(&paquete);
+#if !SEND_EVERYTIME
+            enter_motion_deep_sleep();
+#endif
         }
     }
 }
@@ -365,6 +407,7 @@ static void lora_task(void *pvParameters)
 /* ============================================================
  *  power_task  — temporizador independiente de mosfet / switch de batería
  * ============================================================ */
+#if SEND_EVERYTIME
 static void power_task(void *pvParameters)
 {
     while (1) {
@@ -373,6 +416,7 @@ static void power_task(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(POWER_PERIOD_MS));
     }
 }
+#endif
 
 /* ============================================================
  *  freertos_init — inicializa hardware una vez, luego crea las tareas
@@ -381,38 +425,43 @@ void freertos_init(void)
 {
     ESP_LOGI("MAIN", "Inicializando hardware...");
     
+    init_mosfet_gpios();
+    aplica_estado_mosfet();
     gps_starting();
     init_i2c();
-    mpu6050_init(I2C_NUM_0);
+    ESP_ERROR_CHECK(mpu6050_init(I2C_NUM_0));
     lm35_init();
-    init_mosfet_gpios();
     lora_init();
+    hora_actual();
 
     ESP_LOGI("MAIN", "Inicializando FREERTOS TASK AND QUEUE...");
     lora_queue = xQueueCreate(LORA_QUEUE_LEN, sizeof(lora_msg_t));
-    configASSERT(lora_queue);
+    ESP_ERROR_CHECK(lora_queue != NULL ? ESP_OK : ESP_ERR_NO_MEM);
 
-    xTaskCreate(sensor_task, "sensor", 4096, NULL, 5, NULL);
-    xTaskCreate(lora_task,   "lora",   4096, NULL, 4, NULL);
-    xTaskCreate(power_task,  "power",  2048, NULL, 2, NULL);
+    BaseType_t task_status = xTaskCreate(sensor_task, "sensor", 4096, NULL, 5, NULL);
+    ESP_ERROR_CHECK(task_status == pdPASS ? ESP_OK : ESP_ERR_NO_MEM);
+    task_status = xTaskCreate(lora_task, "lora", 4096, NULL, 4, NULL);
+    ESP_ERROR_CHECK(task_status == pdPASS ? ESP_OK : ESP_ERR_NO_MEM);
+#if SEND_EVERYTIME
+    task_status = xTaskCreate(power_task, "power", 2048, NULL, 2, NULL);
+    ESP_ERROR_CHECK(task_status == pdPASS ? ESP_OK : ESP_ERR_NO_MEM);
+#endif
 }
-
-//create State to change between implementing freertos or using a loop.
-#define FREERTOS_IMPLEMENTATION 1 
-
-//Create State to change between send-everytime and send-on-motion. 
-#define SEND_EVERYTIME 1
+#endif
 
 // MAIN
 void app_main(void)
 {   
 
     #if FREERTOS_IMPLEMENTATION
+        #if !SEND_EVERYTIME
+        ESP_LOGI("MAIN", "Wake-up cause: %d", esp_sleep_get_wakeup_cause());
+        #endif
         freertos_init();
         while(1) {
             vTaskDelay(pdMS_TO_TICKS(1000));
         }
-    #endif
+#else
 
     #if !SEND_EVERYTIME
     ESP_LOGI("MAIN","Comenzando los procesos principales");
@@ -498,4 +547,6 @@ void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
     #endif
+
+#endif
 }
