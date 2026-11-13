@@ -2,7 +2,7 @@
     
 # [AgroNomad](https://linktr.ee/agronomad2026)
 
-<img src="docs/Logo Green AgroNomad.png" height="450" width="450" />
+<img src="docs/imagenes/Logo Green AgroNomad.png" height="450" width="450" />
 
 &nbsp;
 
@@ -75,7 +75,7 @@ Permite visualizar y gestionar la información recibida desde los AgroNeck a tra
 
 | Integrante | Rol | LinkedIn |
 |------------|-----|----------|
-| **Della Torre, Joaquín** | Diseño de Placas electrónicas, Montaje del AgroBot y Desarrollo del AgroServer y Base de Datos. | [linkedin.com/in/joaquin-della-torre](https://www.linkedin.com/in/joaquin-della-torre/) |
-| **Gonzalez Camiscia, Santiago** | Programación del AgroNeck, Sistemas, optimización y gestión de energía con ESP32. | [linkedin.com/in/santiago-gonzalez](https://www.linkedin.com/in/santiago-gonzalez-a80209353/) |
-| **Romero Dominguez, Braulio** | Diseño físico, Desarrollo e Integración del Hardware y Firmware y Documentación. | [linkedin.com/in/braulio-romero-dominguez](www.linkedin.com/in/braulio-romero-dominguez-9a4729419) |
-| **Villegas Gonzalez, Alejandro** | Desarrollo Web y de Interfaces. Programación e Integración de Datos. | [linkedin.com/in/alejandro-villegas-gonzalez](https://www.linkedin.com/in/alejandro-villegas-gonzalez-748a94432/) |
+| **Della Torre, Joaquín** | Diseño de placas electrónicas, montaje del AgroBot y desarrollo del AgroServer y Base de Datos. | [linkedin.com/in/joaquin-della-torre](https://www.linkedin.com/in/joaquin-della-torre/) |
+| **Gonzalez Camiscia, Santiago** | Programación del AgroNeck, sistemas, optimización y gestión de energía con ESP32. | [linkedin.com/in/santiago-gonzalez](https://www.linkedin.com/in/santiago-gonzalez-a80209353/) |
+| **Romero Dominguez, Braulio** | Diseño físico, desarrollo e integración del hardware y firmware y documentación. | [linkedin.com/in/braulio-romero-dominguez](www.linkedin.com/in/braulio-romero-dominguez-9a4729419) |
+| **Villegas Gonzalez, Alejandro** | Desarrollo Web y de Interfaces. Programación e integración de datos. | [linkedin.com/in/alejandro-villegas-gonzalez](https://www.linkedin.com/in/alejandro-villegas-gonzalez-748a94432/) |
