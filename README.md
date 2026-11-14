@@ -2,7 +2,7 @@
     
 # [AgroNomad](https://linktr.ee/agronomad2026)
 
-<img src="docs/imagenes/Logo Green AgroNomad.png" height="450" width="450" />
+<img src="docs/Imagenes/Logo Green AgroNomad.png" height="450" width="450" />
 
 &nbsp;
 
