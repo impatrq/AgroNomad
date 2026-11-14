@@ -6,9 +6,9 @@
 
 &nbsp;
 
-| Página web | Email | Instagram | Tiktok |
+| Página web | Linkedin | Instagram | Tiktok |
 |------------|-------|-----------|---------|
-|[AgroNomad Page](https://agro-nomad-page.vercel.app)|nomadbusiness2026@gmail.com|[@proyecto.agronomad](https://www.instagram.com/proyecto.agronomad/)|[@proyecto.agronomad](https://www.tiktok.com/@proyecto.agronomad)|
+|[AgroNomad Page](https://agro-nomad-page.vercel.app)|[AgroNomad](https://www.linkedin.com/company/145449198)|[@proyecto.agronomad](https://www.instagram.com/proyecto.agronomad/)|[@proyecto.agronomad](https://www.tiktok.com/@proyecto.agronomad)|
 
 
 ### MONITOREO INTELIGENTE DE GANADO 
@@ -58,10 +58,10 @@ Permite visualizar y gestionar la información recibida desde los AgroNeck a tra
 ---
 
 ### AgroNeck  
-<img src="mechanical/Renders/NeckUsuario.jpeg" alt="AgroNeck" width="400">
+<img src="mechanical/Renders/NeckUsuario.jpeg" alt="AgroNeck" width="500">
 
 ### AgroBot
-<img src="mechanical/Renders/BotUsuario.jpeg" alt="AgroBot" width="400">
+<img src="mechanical/Renders/BotUsuario.jpeg" alt="AgroBot" width="500">
 
 ---
 
