@@ -10,8 +10,9 @@ El contenido de esta carpeta está organizado de la siguiente manera:
 
 ```text
 docs/
+├── Comprobantes/                               # Escaneo digital de los comprobantes de compra
 ├── Imagenes/                                   # Imagenes del Proyecto y del equipo de trabajo
-├── ONIET/
+├── ONIET/                                      # Carpeta con Informes, preparación y resultados en las ONIET 30
 │   ├── FIRST_PLAN_ONIET.pdf                    # Certificado de Participación en la categoría First Plan
 │   ├── Informe_de_Presentación_AgroNomad.pdf   # Informe descriptivo para la categoría Prototipos - Eje Libre
 │   ├── Informe_First_Plan_AgroNomad.pdf        # Informe descriptivo para la categoría First Plan
