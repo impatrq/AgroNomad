@@ -11,7 +11,7 @@ import 'leaflet/dist/leaflet.css'
 function App() {
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname)
   const [isDarkMode, setIsDarkMode] = useState(
-    () => window.localStorage.getItem('theme') === 'dark',
+    () => window.localStorage.getItem('theme') !== 'light',
   )
   const onLoginState = null;
 
