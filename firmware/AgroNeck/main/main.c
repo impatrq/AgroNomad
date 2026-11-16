@@ -3,16 +3,14 @@
 #include <sys/time.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "esp_log.h"    
-#include "esp_system.h"
+#include "esp_log.h"
+#include "esp_err.h"
 #include "esp_sleep.h"
-#include "esp_timer.h"               
-#include "esp_private/esp_clk.h"     
-#include "esp_adc/adc_oneshot.h" 
+#include "esp_timer.h"
 #include "driver/gpio.h"
-#include "driver/rtc_io.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 
 #include "lora.h"       // Librería para el módulo LoRa
 #include "neo6m.h"      // Librería para el módulo GPS NEO-6MV2
@@ -22,6 +20,10 @@
 // MODO SLEEP
 #define WAKEUP_GPIO     27 // GPIO que despierta del modo sleep 
 #define WAKEUP_LEVEL    1  // Activarse con nivel alto/flanco ascendente
+
+// Select the runtime independently from the transmission policy.
+#define FREERTOS_IMPLEMENTATION 1
+#define SEND_EVERYTIME 1
 
 // CONTROL DE ALIMENTACIÓN - C1+C4 o C2+C3
 #define MOSFET1 25 // GPIO del MOSFET CONTROL3
@@ -53,7 +55,7 @@ float velocidad;
 double lat_signed;
 double lon_signed;
 
-// Variables de temperatura
+// VARIABLES DE TEMPERATURA
 float lm_amb_temp;  
 float temp_interna; 
 
@@ -143,6 +145,12 @@ void hora_actual() {
     } 
 }
 
+
+
+
+
+
+
 // ============================================================
 // FUNCIONES DE LECTURA DE SENSORES
 // ============================================================
@@ -151,7 +159,7 @@ void read_lm35() {
     ESP_LOGI("read_lm35","Intentando leer LM35...");
     lm35_data_t data;
     esp_err_t ret = lm35_read(&data);
-    if (ret == ESP_OK) {
+    if (ret ==  ) {
         lm_amb_temp = data.lm_amb_temp;
         ESP_LOGI("LM35","Temperatura: %.2f °C", lm_amb_temp);
     } else {
@@ -196,6 +204,11 @@ void read_mlx90614() {
         ESP_LOGE("MLX90614","Error leyendo datos: %s", esp_err_to_name(ret));
     }
 }
+
+
+
+
+
 
 // ============================================================
 // FUNCIONES DE CÁLCULO Y PROCESAMIENTO DE DATOS
@@ -257,12 +270,196 @@ void sensar_enviar(void *pvParameters){
     vTaskDelete(NULL);
 }
 
-//Create State to change between send-everytime and send-on-motion. 
-#define SEND_EVERYTIME 1
+// ============================================================
+// TAREAS Y COLA DEL FREERTOS
+// ============================================================
+#if FREERTOS_IMPLEMENTATION
+
+/*
+Funcionamiento RTOS:
+
+-- Senso y envio al mismo tiempo --
+
+1. cuando senso, meto los datos en una cola
+2. cuando hay algo en la cola, envio esos datos x lora
+
+*/
+
+/* ---------- Parámetros ajustables ---------- */
+#define SENSOR_PERIOD_MS   5000   // cada cuánto muestrear
+#define POWER_PERIOD_MS    60000  // cada cuánto revisar el temporizador del mosfet
+#define LORA_QUEUE_LEN     4      // paquetes en buffer
+
+/* ---------- Tipo de mensaje que se pasa por la cola ---------- */
+typedef struct {
+    int32_t id_collar;
+    float   temperatura;
+    int32_t latitud;
+    int32_t longitud;
+} lora_msg_t;
+
+static QueueHandle_t lora_queue = NULL;
+
+#if !SEND_EVERYTIME
+static void enter_motion_deep_sleep(void)
+{
+    ESP_LOGI("SLEEP", "Preparando MPU6050 para wake-on-motion...");
+    ESP_ERROR_CHECK(mpu6050_enable_wom(I2C_NUM_0, MPU6050_THRESHOLD));
+    ESP_ERROR_CHECK(rtc_gpio_init((gpio_num_t)WAKEUP_GPIO));
+    ESP_ERROR_CHECK(rtc_gpio_set_direction((gpio_num_t)WAKEUP_GPIO, RTC_GPIO_MODE_INPUT_ONLY));
+    ESP_ERROR_CHECK(rtc_gpio_pulldown_en((gpio_num_t)WAKEUP_GPIO));
+    ESP_ERROR_CHECK(rtc_gpio_pullup_dis((gpio_num_t)WAKEUP_GPIO));
+    ESP_ERROR_CHECK(mpu6050_clear_int(I2C_NUM_0));
+
+    if (rtc_gpio_get_level((gpio_num_t)WAKEUP_GPIO) == WAKEUP_LEVEL) {
+        ESP_LOGI("SLEEP", "Esperando que la interrupcion del MPU6050 se desactive...");
+        while (rtc_gpio_get_level((gpio_num_t)WAKEUP_GPIO) == WAKEUP_LEVEL) {
+            ESP_ERROR_CHECK(mpu6050_clear_int(I2C_NUM_0));
+            vTaskDelay(pdMS_TO_TICKS(20));
+        }
+    }
+
+    ESP_ERROR_CHECK(gpio_hold_en(MOSFET1));
+    ESP_ERROR_CHECK(gpio_hold_en(MOSFET2));
+    ESP_ERROR_CHECK(gpio_hold_en(MOSFET3));
+    ESP_ERROR_CHECK(gpio_hold_en(MOSFET4));
+    gpio_deep_sleep_hold_en();
+
+    ESP_ERROR_CHECK(esp_sleep_enable_ext0_wakeup((gpio_num_t)WAKEUP_GPIO, WAKEUP_LEVEL));
+    ESP_LOGI("SLEEP", "Entrando en deep sleep; GPIO%d despertara por movimiento.", WAKEUP_GPIO);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    esp_deep_sleep_start();
+}
+#endif
+
+/* ============================================================
+ *  sensor_task  — lee todos los sensores y empuja un paquete a la cola
+ * ============================================================ */
+static void sensor_task(void *pvParameters)
+{
+#if SEND_EVERYTIME
+    TickType_t last_wake = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(SENSOR_PERIOD_MS);
+#endif
+
+    do {
+        ESP_LOGI("SENSOR", "Leyendo todos los sensores...");
+        read_gps();
+        read_mpu6050();
+        read_mlx90614();
+        read_lm35();
+
+        internal_temp();
+
+        lora_msg_t msg = {
+            .id_collar   = 122,
+            .temperatura = temp_interna,
+            .latitud     = (int32_t)(lat_signed * 1000000.0),
+            .longitud    = (int32_t)(lon_signed * 1000000.0),
+        };
+
+        TickType_t queue_wait =
+#if SEND_EVERYTIME
+            pdMS_TO_TICKS(50);
+#else
+            portMAX_DELAY;
+#endif
+        if (xQueueSend(lora_queue, &msg, queue_wait) != pdTRUE) {
+            ESP_LOGW("SENSOR", "Cola llena, muestra descartada");
+        }
+
+#if SEND_EVERYTIME
+        vTaskDelayUntil(&last_wake, period);   // muestreo periódico sin deriva
+#endif
+    } while (SEND_EVERYTIME);
+
+#if !SEND_EVERYTIME
+    vTaskDelete(NULL);
+#endif
+}
+
+/* ============================================================
+ *  lora_task  — se bloquea en la cola, transmite cuando llega dato
+ * ============================================================ */
+static void lora_task(void *pvParameters)
+{
+    lora_msg_t msg;
+    while (1) {
+        if (xQueueReceive(lora_queue, &msg, portMAX_DELAY) == pdTRUE) {
+            payload_t paquete = {
+                .id_collar   = msg.id_collar,
+                .temperatura = msg.temperatura,
+                .latitud     = msg.latitud,
+                .longitud    = msg.longitud,
+            };
+            ESP_LOGI("LORA", "Transmitiendo paquete...");
+            transmitir_datos(&paquete);
+#if !SEND_EVERYTIME
+            enter_motion_deep_sleep();
+#endif
+        }
+    }
+}
+
+/* ============================================================
+ *  power_task  — temporizador independiente de mosfet / switch de batería
+ * ============================================================ */
+#if SEND_EVERYTIME
+static void power_task(void *pvParameters)
+{
+    while (1) {
+        ESP_LOGI("POWER", "Evaluando switch de baterías...");
+        hora_actual();                     // bloquea ~1 s si hay switch
+        vTaskDelay(pdMS_TO_TICKS(POWER_PERIOD_MS));
+    }
+}
+#endif
+
+/* ============================================================
+ *  freertos_init — inicializa hardware una vez, luego crea las tareas
+ * ============================================================ */
+void freertos_init(void)
+{
+    ESP_LOGI("MAIN", "Inicializando hardware...");
+    
+    init_mosfet_gpios();
+    aplica_estado_mosfet();
+    gps_starting();
+    init_i2c();
+    ESP_ERROR_CHECK(mpu6050_init(I2C_NUM_0));
+    lm35_init();
+    lora_init();
+    hora_actual();
+
+    ESP_LOGI("MAIN", "Inicializando FREERTOS TASK AND QUEUE...");
+    lora_queue = xQueueCreate(LORA_QUEUE_LEN, sizeof(lora_msg_t));
+    ESP_ERROR_CHECK(lora_queue != NULL ? ESP_OK : ESP_ERR_NO_MEM);
+
+    BaseType_t task_status = xTaskCreate(sensor_task, "sensor", 4096, NULL, 5, NULL);
+    ESP_ERROR_CHECK(task_status == pdPASS ? ESP_OK : ESP_ERR_NO_MEM);
+    task_status = xTaskCreate(lora_task, "lora", 4096, NULL, 4, NULL);
+    ESP_ERROR_CHECK(task_status == pdPASS ? ESP_OK : ESP_ERR_NO_MEM);
+#if SEND_EVERYTIME
+    task_status = xTaskCreate(power_task, "power", 2048, NULL, 2, NULL);
+    ESP_ERROR_CHECK(task_status == pdPASS ? ESP_OK : ESP_ERR_NO_MEM);
+#endif
+}
+#endif
 
 // MAIN
 void app_main(void)
-{
+{   
+
+    #if FREERTOS_IMPLEMENTATION
+        #if !SEND_EVERYTIME
+        ESP_LOGI("MAIN", "Wake-up cause: %d", esp_sleep_get_wakeup_cause());
+        #endif
+        freertos_init();
+        while(1) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+#else
+
     #if !SEND_EVERYTIME
     ESP_LOGI("MAIN","Comenzando los procesos principales");
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
@@ -347,4 +544,6 @@ void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
     #endif
+
+#endif
 }

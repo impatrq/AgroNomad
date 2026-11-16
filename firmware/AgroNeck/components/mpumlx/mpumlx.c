@@ -117,11 +117,12 @@ esp_err_t mpu6050_enable_wom(i2c_port_t i2c_num, uint8_t threshold_val) {
     if (ret != ESP_OK) return ret;
     ret = mpu6050_write_byte(i2c_num, MPU6050_INT_PIN_CFG, 0x20);
     if (ret != ESP_OK) return ret;
-    ret = mpu6050_write_byte(i2c_num, MPU6050_INT_ENABLE, 0x40);
-    if (ret != ESP_OK) return ret;
     ret = mpu6050_write_byte(i2c_num, MPU6050_PWR_MGMT_1_REG, 0x28);
     if (ret != ESP_OK) return ret;
-    ret = mpu6050_write_byte(i2c_num, MPU6050_PWR_MGMT_2_REG, 0x07);
+    // Keep all accelerometer axes active; put only the gyros in standby.
+    ret = mpu6050_write_byte(i2c_num, MPU6050_PWR_MGMT_2_REG, 0x38);
+    if (ret != ESP_OK) return ret;
+    ret = mpu6050_write_byte(i2c_num, MPU6050_INT_ENABLE, 0x40);
     if (ret != ESP_OK) return ret;
 
     return ESP_OK;
