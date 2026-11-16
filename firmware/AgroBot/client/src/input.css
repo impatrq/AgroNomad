@@ -1,1 +1,134 @@
 @import "tailwindcss";
+
+@layer base {
+  html.dark,
+  html.dark body {
+    background-color: #101813;
+    color: #e5eee7;
+  }
+}
+
+@layer utilities {
+  .dark .bg-white,
+  .dark .bg-white\/95 {
+    background-color: #17211b;
+  }
+
+  .dark .bg-slate-50 {
+    background-color: #101813;
+  }
+
+  .dark .bg-slate-100 {
+    background-color: #1e2b23;
+  }
+
+  .dark .bg-emerald-50 {
+    background-color: #163324;
+  }
+
+  .dark .bg-emerald-100 {
+    background-color: #1c3d2c;
+  }
+
+  .dark .bg-amber-50 {
+    background-color: #3a2c15;
+  }
+
+  .dark .bg-orange-50,
+  .dark .bg-orange-100 {
+    background-color: #39291d;
+  }
+
+  .dark .bg-sky-50 {
+    background-color: #172f3d;
+  }
+
+  .dark .bg-red-50 {
+    background-color: #3b2020;
+  }
+
+  .dark .text-slate-900,
+  .dark .text-slate-800,
+  .dark .text-slate-700,
+  .dark .text-gray-900 {
+    color: #e5eee7;
+  }
+
+  .dark .text-slate-600,
+  .dark .text-slate-500,
+  .dark .text-gray-500,
+  .dark .text-gray-400 {
+    color: #a7b7ab;
+  }
+
+  .dark .text-emerald-800,
+  .dark .text-emerald-700 {
+    color: #86efac;
+  }
+
+  .dark .text-amber-900 {
+    color: #fde68a;
+  }
+
+  .dark .text-orange-700 {
+    color: #fdba74;
+  }
+
+  .dark .text-sky-700 {
+    color: #7dd3fc;
+  }
+
+  .dark .text-red-700 {
+    color: #fca5a5;
+  }
+
+  .dark .border-slate-300,
+  .dark .border-slate-200 {
+    border-color: #34443a;
+  }
+
+  .dark .border-green-200 {
+    border-color: #315d3f;
+  }
+
+  .dark .border-amber-200 {
+    border-color: #765b27;
+  }
+
+  .dark .border-red-200 {
+    border-color: #713333;
+  }
+
+  .dark input,
+  .dark select,
+  .dark textarea {
+    border-color: #405247;
+    background-color: #17211b;
+    color: #e5eee7;
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: #91a197;
+  }
+
+  .dark .leaflet-tile-pane {
+    filter: brightness(0.75) saturate(0.85);
+  }
+
+  .dark .overview-panel .overview-panel-inset {
+    background-color: #1e2b23;
+  }
+
+  .dark .overview-panel .overview-panel-primary-text {
+    color: #e5eee7;
+  }
+
+  .dark .overview-panel .overview-panel-gridline {
+    stroke: #34443a;
+  }
+
+  .dark .overview-panel .overview-panel-axis-label {
+    fill: #a7b7ab;
+  }
+}

@@ -153,20 +153,20 @@ function ActivityChart() {
   const areaPoints = `0,${height} ${points} ${width},${height}`;
 
   return (
-    <div className="rounded-3xl bg-[#f0f4f7] p-5">
+    <div className="overview-panel-inset rounded-3xl bg-[#f0f4f7] p-5">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500">
             Actividad del rodeo
           </p>
 
-          <h3 className="mt-1 text-lg font-semibold text-[#0f2340]">
+          <h3 className="overview-panel-primary-text mt-1 text-lg font-semibold text-[#0f2340]">
             Últimas 24 horas
           </h3>
         </div>
 
         <select
-          className="rounded-xl border-none bg-white px-3 py-2 text-sm
+          className="overview-panel-primary-text rounded-xl border-none bg-white px-3 py-2 text-sm
                      text-slate-600 outline-none ring-0"
           defaultValue="24h"
         >
@@ -193,6 +193,7 @@ function ActivityChart() {
                 y1={y}
                 x2={width}
                 y2={y}
+                className="overview-panel-gridline"
                 stroke="#d9e1e7"
                 strokeWidth="1"
               />
@@ -226,7 +227,7 @@ function ActivityChart() {
                 x={x}
                 y={height + 25}
                 textAnchor="middle"
-                className="fill-slate-400 text-[11px]"
+                className="overview-panel-axis-label fill-slate-400 text-[11px]"
               >
                 {point.time}
               </text>
@@ -273,7 +274,7 @@ function MetricsGrid({ temperature, movementTime, restTime, distanceTodayMeters 
       {metrics.map(({ label, value, icon: Icon }) => (
         <div
           key={label}
-          className="rounded-2xl bg-[#f0f4f7] p-4 transition
+          className="overview-panel-inset rounded-2xl bg-[#f0f4f7] p-4 transition
                      duration-200 hover:-translate-y-0.5 hover:shadow-sm"
         >
           <div className="mb-3 flex items-center justify-between">
@@ -284,7 +285,7 @@ function MetricsGrid({ temperature, movementTime, restTime, distanceTodayMeters 
             <Icon className="h-4 w-4 text-[#009f70]" strokeWidth={2} />
           </div>
 
-          <p className="text-xl font-bold text-[#0f2340]">
+          <p className="overview-panel-primary-text text-xl font-bold text-[#0f2340]">
             {value}
           </p>
         </div>
@@ -515,7 +516,7 @@ export default function OverviewPanel({ animals, selectedAnimal, loading, error 
     : undefined;
 
   return (
-    <div id="overview-section" className="h-full rounded-[28px] border border-green-200 bg-white p-6 shadow-sm">
+    <div id="overview-section" className="overview-panel h-full rounded-[28px] border border-green-200 bg-white p-6 shadow-sm">
       <h3 className="text-xl font-semibold">Visión general</h3>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div className="rounded-3xl bg-slate-100 p-5">
