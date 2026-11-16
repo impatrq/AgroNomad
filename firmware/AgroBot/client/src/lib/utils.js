@@ -1,6 +1,28 @@
+export const ANIMAL_MOVEMENT_THRESHOLD_METERS = 5
+export const ANIMAL_REST_DELAY_MS = 15_000
+
+export function getLocalDateKey(timestamp) {
+  const date = new Date(timestamp)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
 export function hasValidAnimalPosition(animal) {
   return Number.isFinite(animal?.lat) && Number.isFinite(animal?.lng) &&
     animal.lat !== 0 && animal.lng !== 0
+}
+
+const SAME_POSITION_EPSILON = 1e-7
+
+export function isSameAnimalPosition(positionA, positionB, epsilon = SAME_POSITION_EPSILON) {
+  if (!positionA || !positionB) return false
+
+  const latDifference = Math.abs(Number(positionA.lat) - Number(positionB.lat))
+  const lngDifference = Math.abs(Number(positionA.lng) - Number(positionB.lng))
+
+  return Number.isFinite(latDifference) && Number.isFinite(lngDifference) &&
+    latDifference <= epsilon && lngDifference <= epsilon
 }
 
 export function normalizeBoundaryGroups(payload) {

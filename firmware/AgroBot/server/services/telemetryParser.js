@@ -8,7 +8,7 @@ export function normalizeAnimalPayload(raw) {
   const lng = Number(raw.LONG ?? raw.long ?? raw.longitude ?? raw.Long ?? raw.Longitude)
   const temp = raw.TEMP ?? raw.temp ?? raw.temperature ?? raw.Temperature ?? ''
 
-  if (!id || Number.isNaN(lat) || Number.isNaN(lng)) return null
+  if (!id || id.toUpperCase() === 'RP' || Number.isNaN(lat) || Number.isNaN(lng)) return null
 
   return { id, name: raw.NAME ?? raw.name ?? raw.Name ?? `Animal ${id}`, lat, lng, temp: String(temp) }
 }

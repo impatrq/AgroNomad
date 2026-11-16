@@ -1,7 +1,150 @@
 // src/hooks/useAnimalDashboard.js
 import { useEffect, useRef, useState } from 'react'
 import { apiUrl, getAnimalsWsUrl} from '../lib/api'
-import { hasValidAnimalPosition, normalizeBoundaryGroups } from '../lib/utils'
+import {
+  ANIMAL_MOVEMENT_THRESHOLD_METERS,
+  ANIMAL_REST_DELAY_MS,
+  getLocalDateKey,
+  hasValidAnimalPosition,
+  normalizeBoundaryGroups,
+} from '../lib/utils'
+
+const MAX_ANIMAL_SPEED_METERS_PER_SECOND = 15
+const MAX_POSITION_GAP_FOR_DISTANCE_MS = 60_000
+
+function getDistanceMeters(lat1, lng1, lat2, lng2) {
+  const toRadians = (degrees) => (degrees * Math.PI) / 180
+  const latitudeDifference = toRadians(lat2 - lat1)
+  const longitudeDifference = toRadians(lng2 - lng1)
+  const haversine =
+    Math.sin(latitudeDifference / 2) ** 2 +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(longitudeDifference / 2) ** 2
+
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+}
+
+function getStoredDailyDistance(animalId, dateKey) {
+  try {
+    const stored = window.localStorage.getItem(`agronomad:distance:${animalId}:${dateKey}`)
+    const distance = Number(stored)
+    return Number.isFinite(distance) && distance >= 0 ? distance : 0
+  } catch (error) {
+    console.error('Could not read the daily animal distance:', error)
+    return 0
+  }
+}
+
+function storeDailyDistance(animalId, dateKey, distance) {
+  try {
+    window.localStorage.setItem(
+      `agronomad:distance:${animalId}:${dateKey}`,
+      String(distance),
+    )
+  } catch (error) {
+    console.error('Could not save the daily animal distance:', error)
+  }
+}
+
+function updateAnimalActivity(activityByAnimal, animal, timestamp) {
+  const dateKey = getLocalDateKey(timestamp)
+  const previous = activityByAnimal.get(animal.id)
+
+  if (!animal.hasPosition) {
+    const activity = previous ?? {
+      dateKey,
+      distanceTodayMeters: getStoredDailyDistance(animal.id, dateKey),
+      quietSince: null,
+      movementStartedAt: null,
+      lastMovementAt: null,
+    }
+    const currentActivity = activity.dateKey === dateKey
+      ? activity
+      : {
+          ...activity,
+          dateKey,
+          distanceTodayMeters: getStoredDailyDistance(animal.id, dateKey),
+        }
+    activityByAnimal.set(animal.id, currentActivity)
+    return currentActivity
+  }
+
+  if (
+    !previous ||
+    !Number.isFinite(previous.anchorLat) ||
+    !Number.isFinite(previous.anchorLng)
+  ) {
+    const initialActivity = {
+      ...previous,
+      anchorLat: animal.lat,
+      anchorLng: animal.lng,
+      anchorUpdatedAt: timestamp,
+      dateKey,
+      distanceTodayMeters: previous?.dateKey === dateKey
+        ? previous.distanceTodayMeters
+        : getStoredDailyDistance(animal.id, dateKey),
+      quietSince: previous?.quietSince ?? timestamp,
+      movementStartedAt: previous?.movementStartedAt ?? null,
+      lastMovementAt: previous?.lastMovementAt ?? null,
+    }
+    activityByAnimal.set(animal.id, initialActivity)
+    return initialActivity
+  }
+
+  if (previous.dateKey !== dateKey) {
+    const updatedActivity = {
+      ...previous,
+      anchorLat: animal.lat,
+      anchorLng: animal.lng,
+      anchorUpdatedAt: timestamp,
+      dateKey,
+      distanceTodayMeters: getStoredDailyDistance(animal.id, dateKey),
+    }
+    activityByAnimal.set(animal.id, updatedActivity)
+    return updatedActivity
+  }
+
+  const movedDistance = getDistanceMeters(
+    previous.anchorLat,
+    previous.anchorLng,
+    animal.lat,
+    animal.lng,
+  )
+  if (movedDistance >= ANIMAL_MOVEMENT_THRESHOLD_METERS) {
+    const elapsedMs = Math.max(timestamp - previous.anchorUpdatedAt, 0)
+    const plausibleDistance =
+      MAX_ANIMAL_SPEED_METERS_PER_SECOND *
+        (Math.min(elapsedMs, MAX_POSITION_GAP_FOR_DISTANCE_MS) / 1000) +
+      ANIMAL_MOVEMENT_THRESHOLD_METERS
+    if (movedDistance > plausibleDistance) {
+      console.warn(
+        `[Telemetry] Ignoring implausible GPS jump for ${animal.id}: ` +
+          `${Math.round(movedDistance)} m in ${Math.round(elapsedMs / 1000)} s`,
+      )
+      return previous
+    }
+
+    const movementContinues =
+      previous.lastMovementAt !== null &&
+      timestamp - previous.lastMovementAt < ANIMAL_REST_DELAY_MS
+    const updatedActivity = {
+      anchorLat: animal.lat,
+      anchorLng: animal.lng,
+      anchorUpdatedAt: timestamp,
+      dateKey,
+      distanceTodayMeters: previous.distanceTodayMeters + movedDistance,
+      quietSince: null,
+      movementStartedAt: movementContinues ? previous.movementStartedAt : timestamp,
+      lastMovementAt: timestamp,
+    }
+    activityByAnimal.set(animal.id, updatedActivity)
+    storeDailyDistance(animal.id, dateKey, updatedActivity.distanceTodayMeters)
+    return updatedActivity
+  }
+
+  return previous
+}
 
 // Derive ws:// or wss:// from your apiUrl so it works in dev & prod 
 // For example in dev ==> ws://localhost:3000/ws/animals
@@ -15,6 +158,7 @@ export default function useAnimalDashboard() {
   const [error, setError] = useState(null)
   const selectedAnimalRef = useRef(null)
   const missingPositionIdsRef = useRef(new Set())
+  const animalActivityRef = useRef(new Map())
 
   useEffect(() => {
     selectedAnimalRef.current = selectedAnimal
@@ -62,15 +206,27 @@ export default function useAnimalDashboard() {
         return
       }
 
-      const normalized = rawAnimals.map((item) => ({
-        id: String(item.id ?? ''),
-        name: item.name ?? `Animal ${item.id ?? ''}`,
-        lat: Number(item.lat ?? 0),
-        lng: Number(item.lng ?? 0),
-        temp: String(item.temp ?? ''),
-      }))
+      const timestamp = Date.now()
+      const normalized = rawAnimals.map((item) => {
+        const lat = Number(item.lat ?? 0)
+        const lng = Number(item.lng ?? 0)
 
-      const missingPositionAnimals = normalized.filter((animal) => !hasValidAnimalPosition(animal))
+        const animal = {
+          id: String(item.id ?? ''),
+          name: item.name ?? `Animal ${item.id ?? ''}`,
+          lat,
+          lng,
+          hasPosition: item.hasPosition !== false && hasValidAnimalPosition({ lat, lng }),
+          temp: String(item.temp ?? ''),
+        }
+
+        return {
+          ...animal,
+          ...updateAnimalActivity(animalActivityRef.current, animal, timestamp),
+        }
+      })
+
+      const missingPositionAnimals = normalized.filter((animal) => !animal.hasPosition)
       const newlyMissingPositionAnimals = missingPositionAnimals.filter(
         (animal) => !missingPositionIdsRef.current.has(animal.id)
       )
@@ -87,9 +243,9 @@ export default function useAnimalDashboard() {
       setAnimals(normalized)
 
       if (normalized.length > 0) {
-        const stillSelected = normalized.find((a) => a.id === previouslySelectedId)
         const firstWithPosition = normalized.find(hasValidAnimalPosition)
-        setSelectedAnimal(stillSelected || firstWithPosition || normalized[0])
+        const updatedSelection = normalized.find((animal) => animal.id === previouslySelectedId)
+        setSelectedAnimal(updatedSelection || firstWithPosition || normalized[0])
       } else {
         setSelectedAnimal(null)
       }
