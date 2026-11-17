@@ -10,6 +10,8 @@
 |------------|-------|-----------|---------|
 |[AgroNomad Page](https://agro-nomad-page.vercel.app)|[AgroNomad](https://www.linkedin.com/company/145449198)|[@proyecto.agronomad](https://www.instagram.com/proyecto.agronomad/)|[@proyecto.agronomad](https://www.tiktok.com/@proyecto.agronomad)|
 
+</div>
+
 
 ### MONITOREO INTELIGENTE DE GANADO 
 
@@ -17,16 +19,15 @@ AgroNomad es un sistema de monitoreo inteligente de ganado que combina collares 
 
 El sistema está compuesto por collares inteligentes, una estación de recepción fija y una interfaz de usuario que permite visualizar y gestionar la información obtenida.
 
----
+
 
 ## Objetivo
 
 Desarrollar un sistema IoT que permita realizar el seguimiento remoto del ganado, obteniendo información sobre su ubicación, movimiento y diferentes parámetros del animal, y centralizando estos datos en una estación de control.
 
----
+
 
 ## Componentes del Proyecto  
-
 
 ### AgroNeck
 
@@ -46,24 +47,38 @@ Interfaz de usuario del sistema.
 
 Permite visualizar y gestionar la información recibida desde los AgroNeck a través del AgroBot.
 
----
 
 ## Estructura del Proyecto  
-**docs/** Documentación e Informes del Proyecto  
-**firmware/** Código de los Microcontroladores  
-**hardware/** Esquemáticos y PCB  
-**mechanical/** Diseños 3D  
-**web/** Landing Page del Proyecto  
+
+| Ruta | Descripción |
+|------------|---------|
+|**docs**|Documentación e Informes del Proyecto|
+|**firmware**|Software de los Microcontroladores y Aplicacion Web del Agrobot|
+|**hardware**|Esquemáticos y PCB|
+|**mechanical**|Diseños 3D|
+|**web**|Landing Page del Proyecto|
 
 ---
+
+<div align="center">
 
 ### AgroNeck  
-<img src="mechanical/Renders/NeckUsuario.jpeg" alt="AgroNeck" width="500">
+<div style="margin-top:25px">
+
+<img src="mechanical/Renders/NeckUsuario.jpeg" alt="AgroNeck" width="500" height="400">
+<img src="docs/Imagenes/agronomad_resized_500x400.jpg" alt="AgroNeckReal" width="500" height="400">
+
+</div>
 
 ### AgroBot
-<img src="mechanical/Renders/BotUsuario.jpeg" alt="AgroBot" width="500">
+<div style="margin-top:25px;">
 
----
+<img src="mechanical/Renders/BotUsuario.jpeg" alt="AgroBot" width="500" height="400">
+<img src="docs/Imagenes/AgroBotReal.jpeg" alt="AgroBot" width="500" height="400">
+
+</div>
+
+</div>
 
 ## Equipo AgroNomad
 
