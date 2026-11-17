@@ -146,13 +146,13 @@ export default function UserConfig({ onNavigate }) {
   }
 
   const profileFields = [
-    { name: 'name', label: 'Nombre', type: 'text', autoComplete: 'name' },
-    { name: 'fieldName', label: 'Nombre del campo', type: 'text' },
-    { name: 'location', label: 'Ubicación', type: 'text', autoComplete: 'address-level2' },
-    { name: 'manager', label: 'Nombre del encargado', type: 'text' },
-    { name: 'phone', label: 'Número de teléfono', type: 'tel', autoComplete: 'tel' },
-    { name: 'hectares', label: 'Hectáreas', type: 'number', min: '0', step: 'any' },
-    { name: 'animalCount', label: 'Cantidad total de animales', type: 'number', min: '0', step: '1' },
+    { name: 'name', label: 'Nombre', type: 'text', autoComplete: 'name', placeholder: 'Martín Gómez' },
+    { name: 'fieldName', label: 'Nombre del campo', type: 'text', placeholder: 'Finca Los Álamos' },
+    { name: 'location', label: 'Ubicación', type: 'text', autoComplete: 'address-level2', placeholder: 'Chascomus, Buenos Aires' },
+    { name: 'manager', label: 'Nombre del encargado', type: 'text', placeholder: 'Sofía Pérez' },
+    { name: 'phone', label: 'Número de teléfono', type: 'tel', autoComplete: 'tel', placeholder: '+54 9 11 2345-6789' },
+    { name: 'hectares', label: 'Hectáreas', type: 'number', min: '0', step: 'any', placeholder: '85' },
+    { name: 'animalCount', label: 'Cantidad total de animales', type: 'number', min: '0', step: '1', placeholder: '42' },
   ]
 
   return (
@@ -193,7 +193,7 @@ export default function UserConfig({ onNavigate }) {
                         {...field}
                         value={draftProfile[field.name]}
                         onChange={updateDraft}
-                        className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20"
+                        className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 placeholder:text-slate-400 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20"
                       />
                     </label>
                   ))}
