@@ -24,4 +24,5 @@ docs/
 ├── Carpeta_de_Campo_AgroNomad.pdf              # Bitácora de campo
 ├── Guion_Exposicion_AgroNomad.pdf              # Guión para presentaciones del proyecto
 ├── Manual_de_Usuario_AgroNomad.pdf             # Manual de usuario del producto
+├── Elementos_de_Alcance_Inconclusos_AgroNomad.pdf # Informe de elementos de alcance inconclusos
 └── README.md
