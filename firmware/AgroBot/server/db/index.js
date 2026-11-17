@@ -411,7 +411,7 @@ export async function listAnimals() {
                 ) AS has_position,
                 latest.temperature
          FROM (
-           SELECT location, temperature
+           SELECT location, temperature, timestamp
            FROM gps_positions
            WHERE animal_id = $1
            ORDER BY timestamp DESC, id DESC
@@ -434,10 +434,12 @@ export async function listAnimals() {
       animals.push({
         id: String(row.device_uid || row.id),
         name: row.name,
+        hasCollar: Boolean(row.device_uid),
         lat: Number(latest.latitude ?? 0),
         lng: Number(latest.longitude ?? 0),
         hasPosition: latest.has_position === true,
         temp: String(latest.temperature ?? ''),
+        lastSeenAt: latest.timestamp,
       })
     }
 
