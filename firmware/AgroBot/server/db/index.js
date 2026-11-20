@@ -409,7 +409,8 @@ export async function listAnimals() {
                   AND ST_X(latest.location::geometry) <> 0,
                   FALSE
                 ) AS has_position,
-                latest.temperature
+                latest.temperature,
+                latest.timestamp
          FROM (
            SELECT location, temperature, timestamp
            FROM gps_positions

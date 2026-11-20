@@ -309,9 +309,7 @@ export default function useAnimalDashboard() {
 
         const rawAnimals = Array.isArray(data)
           ? data
-          : Array.isArray(data?.animals)
-            ? data.animals
-            : []
+          : [data?.data, data?.animals].find(Array.isArray) ?? []
 
         applyAnimals(rawAnimals)
         /*

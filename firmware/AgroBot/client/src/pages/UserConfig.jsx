@@ -25,22 +25,21 @@ function readProfile() {
   }
 }
 
-function formatElapsed(timestamp, now) {
+function formatSyncTime(timestamp) {
   if (!timestamp) return 'Sin datos'
 
-  const elapsedSeconds = Math.floor(Math.max(0, now - new Date(timestamp).getTime()) / 1000)
-  if (!Number.isFinite(elapsedSeconds)) return 'Sin datos'
-  if (elapsedSeconds < 2) return 'Ahora'
-  if (elapsedSeconds < 60) return `Hace ${elapsedSeconds} segundos`
+  const date = new Date(timestamp)
+  if (!Number.isFinite(date.getTime())) return 'Sin datos'
 
-  const elapsedMinutes = Math.floor(elapsedSeconds / 60)
-  if (elapsedMinutes < 60) return `Hace ${elapsedMinutes} ${elapsedMinutes === 1 ? 'minuto' : 'minutos'}`
-
-  const elapsedHours = Math.floor(elapsedMinutes / 60)
-  if (elapsedHours < 24) return `Hace ${elapsedHours} ${elapsedHours === 1 ? 'hora' : 'horas'}`
-
-  const elapsedDays = Math.floor(elapsedHours / 24)
-  return `Hace ${elapsedDays} ${elapsedDays === 1 ? 'día' : 'días'}`
+  return new Intl.DateTimeFormat('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).format(date)
 }
 
 function displayValue(value) {
@@ -69,9 +68,7 @@ export default function UserConfig({ onNavigate }) {
           const message = JSON.parse(event.data)
           const nextAnimals = Array.isArray(message)
             ? message
-            : Array.isArray(message?.animals)
-              ? message.animals
-              : null
+            : [message?.data, message?.animals].find(Array.isArray) ?? null
 
           if (isMounted && nextAnimals) setAnimals(nextAnimals)
         } catch (error) {
@@ -271,7 +268,7 @@ export default function UserConfig({ onNavigate }) {
                 </div>
                 <div className="rounded-xl bg-slate-100 p-4">
                   <dt className="text-sm uppercase text-slate-500">Última sincronización de collares</dt>
-                  <dd className="mt-1 text-lg font-semibold">{formatElapsed(latestSyncAt, now)}</dd>
+                  <dd className="mt-1 text-lg font-semibold">{formatSyncTime(latestSyncAt)}</dd>
                 </div>
               </dl>
             </div>
