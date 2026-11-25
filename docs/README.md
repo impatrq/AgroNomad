@@ -22,7 +22,9 @@ docs/
 ├── Anteproyecto_AgroNomad.pdf                  # Documento del anteproyecto
 ├── Banner_AgroNomad.jpg                        # Banner Oficial de AgroNomad
 ├── Carpeta_de_Campo_AgroNomad.pdf              # Bitácora de campo
-├── Guion_Exposicion_AgroNomad.pdf              # Guión para presentaciones del proyecto
-├── Manual_de_Usuario_AgroNomad.pdf             # Manual de usuario del producto
 ├── Elementos_de_Alcance_Inconclusos_AgroNomad.pdf # Informe de elementos de alcance inconclusos
+├── Guion_Exposicion_AgroNomad.pdf              # Guión para presentaciones del proyecto
+├── Informe_Descriptivo__AgroNomad.pdf          # Informe descriptivo técnico del proyecto
+├── Manual_de_Usuario_AgroNomad.pdf             # Manual de usuario del producto
+├── Materiales_Utilizados_AgroNomad.pdf         # Listado de componentes y precios en USD
 └── README.md
