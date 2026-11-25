@@ -442,7 +442,7 @@ export async function listAnimals() {
   try {
     const userId = await getDemoUserId(client)
     const result = await client.query(
-      `SELECT a.id, a.name, a.animal_type, d.device_uid
+      `SELECT a.id, a.name, a.animal_type, a.yard_id, d.device_uid
        FROM animals a
        LEFT JOIN animal_devices ad ON ad.animal_id = a.id AND ad.unassigned_at IS NULL
        LEFT JOIN devices d ON d.id = ad.device_id
@@ -513,6 +513,7 @@ export async function listAnimals() {
       animals.push({
         id: String(row.device_uid || row.id),
         name: row.name,
+        yardId: row.yard_id,
         hasCollar: Boolean(row.device_uid),
         lat: Number(latest.latitude ?? 0),
         lng: Number(latest.longitude ?? 0),

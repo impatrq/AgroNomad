@@ -30,6 +30,16 @@ export function normalizeBoundaryGroups(payload) {
     return []
   }
 
+  if (Array.isArray(payload.yards)) {
+    return payload.yards
+      .filter((yard) => Array.isArray(yard.positions) && yard.positions.length >= 3)
+      .map((yard) => ({
+        id: yard.id,
+        name: yard.name,
+        positions: yard.positions,
+      }))
+  }
+
   const rawGroups = payload.limitsField || payload.limits || payload.boundaries || payload.boundaryFields || payload.fields
 
   if (!rawGroups || typeof rawGroups !== 'object' || Array.isArray(rawGroups)) {

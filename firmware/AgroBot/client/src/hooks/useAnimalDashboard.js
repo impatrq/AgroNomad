@@ -254,6 +254,7 @@ export default function useAnimalDashboard() {
         const animal = {
           id: String(item.id ?? ''),
           name: item.name ?? `Animal ${item.id ?? ''}`,
+          yardId: item.yardId ?? null,
           lat,
           lng,
           hasPosition: item.hasPosition !== false && hasValidAnimalPosition({ lat, lng }),

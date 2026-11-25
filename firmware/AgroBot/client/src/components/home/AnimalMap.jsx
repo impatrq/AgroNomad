@@ -6,6 +6,7 @@ import { hasValidAnimalPosition } from '../../lib/utils'
 
 const MIN_REFERENCE_TEMPERATURE = 38
 const MAX_REFERENCE_TEMPERATURE = 39.5
+const OUTSIDE_FIELD_DELAY_MS = 10_000
 
 function TemperatureAlert({ alert }) {
   const [dismissed, setDismissed] = useState(false)
@@ -39,6 +40,69 @@ function TemperatureAlert({ alert }) {
       </button>
     </article>
   )
+}
+
+function GeofenceAlert({ alert, onDismiss }) {
+  return (
+    <article
+      role="alert"
+      className="pointer-events-auto flex gap-3 rounded-2xl border border-red-300 bg-white/95 p-4 text-slate-800 shadow-lg backdrop-blur"
+    >
+      <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-red-700">Alerta de perímetro</p>
+        <p className="mt-1 text-sm">
+          {alert.animalName} se encuentra fuera del campo {alert.yardName}.
+        </p>
+      </div>
+      <button
+        type="button"
+        aria-label={`Descartar alerta de perímetro de ${alert.animalName}`}
+        title="Descartar alerta"
+        onClick={() => onDismiss(alert.key)}
+        className="h-fit rounded-lg p-1 text-slate-500 transition hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-red-600"
+      >
+        <X aria-hidden="true" className="h-4 w-4" />
+      </button>
+    </article>
+  )
+}
+
+function isPointOnSegment(point, start, end) {
+  const [latitude, longitude] = point
+  const [startLatitude, startLongitude] = start
+  const [endLatitude, endLongitude] = end
+  const cross =
+    (longitude - startLongitude) * (endLatitude - startLatitude) -
+    (latitude - startLatitude) * (endLongitude - startLongitude)
+
+  if (Math.abs(cross) > 1e-10) return false
+
+  return longitude >= Math.min(startLongitude, endLongitude) - 1e-10 &&
+    longitude <= Math.max(startLongitude, endLongitude) + 1e-10 &&
+    latitude >= Math.min(startLatitude, endLatitude) - 1e-10 &&
+    latitude <= Math.max(startLatitude, endLatitude) + 1e-10
+}
+
+function isPointInsideBoundary([latitude, longitude], positions) {
+  let inside = false
+
+  for (let index = 0, previousIndex = positions.length - 1; index < positions.length; previousIndex = index, index += 1) {
+    const start = positions[index]
+    const end = positions[previousIndex]
+    if (isPointOnSegment([latitude, longitude], start, end)) return true
+
+    const crossesLatitude = (start[0] > latitude) !== (end[0] > latitude)
+    if (
+      crossesLatitude &&
+      longitude <
+        ((end[1] - start[1]) * (latitude - start[0])) / (end[0] - start[0]) + start[1]
+    ) {
+      inside = !inside
+    }
+  }
+
+  return inside
 }
 
 function getBearing([startLat, startLng], [endLat, endLng]) {
@@ -148,9 +212,80 @@ export default function AnimalMap({
     [animals]
   )
 
+  const [geofenceAlerts, setGeofenceAlerts] = useState([])
+  const outsideSinceRef = useRef(new Map())
+  const dismissedGeofenceAlertsRef = useRef(new Set())
+
+  useEffect(() => {
+    const checkGeofences = () => {
+      const currentAnimalKeys = new Set()
+      const activeAlerts = new Map()
+      const now = Date.now()
+
+      for (const animal of animals) {
+        if (animal.yardId == null || !hasValidAnimalPosition(animal)) continue
+
+        const boundary = yardBoundaries.find(
+          (yard) => String(yard.id) === String(animal.yardId)
+        )
+        if (!boundary || boundary.positions.length < 3) continue
+
+        const key = `${animal.id}:${boundary.id}`
+        currentAnimalKeys.add(key)
+
+        if (isPointInsideBoundary([animal.lat, animal.lng], boundary.positions)) {
+          outsideSinceRef.current.delete(key)
+          dismissedGeofenceAlertsRef.current.delete(key)
+          continue
+        }
+
+        if (!outsideSinceRef.current.has(key)) {
+          outsideSinceRef.current.set(key, now)
+        }
+
+        if (
+          now - outsideSinceRef.current.get(key) >= OUTSIDE_FIELD_DELAY_MS &&
+          !dismissedGeofenceAlertsRef.current.has(key)
+        ) {
+          activeAlerts.set(key, {
+            key,
+            animalName: animal.name,
+            yardName: boundary.name,
+          })
+        }
+      }
+
+      for (const key of outsideSinceRef.current.keys()) {
+        if (!currentAnimalKeys.has(key)) {
+          outsideSinceRef.current.delete(key)
+          dismissedGeofenceAlertsRef.current.delete(key)
+        }
+      }
+
+      setGeofenceAlerts((currentAlerts) => {
+        const nextAlerts = [...activeAlerts.values()]
+        if (
+          currentAlerts.length === nextAlerts.length &&
+          currentAlerts.every((alert, index) =>
+            alert.key === nextAlerts[index]?.key &&
+            alert.animalName === nextAlerts[index]?.animalName &&
+            alert.yardName === nextAlerts[index]?.yardName
+          )
+        ) {
+          return currentAlerts
+        }
+        return nextAlerts
+      })
+    }
+
+    checkGeofences()
+    const intervalId = window.setInterval(checkGeofences, 500)
+    return () => window.clearInterval(intervalId)
+  }, [animals, yardBoundaries])
+
   return (
     <div className="relative z-0 mt-6 overflow-hidden rounded-3xl border border-slate-200">
-      {temperatureAlerts.length > 0 && (
+      {(temperatureAlerts.length > 0 || geofenceAlerts.length > 0) && (
         <div
           aria-label="Alertas de bienestar"
           aria-live="polite"
@@ -160,6 +295,18 @@ export default function AnimalMap({
             <TemperatureAlert
               key={`${alert.animal.id}-${alert.type}`}
               alert={alert}
+            />
+          ))}
+          {geofenceAlerts.map((alert) => (
+            <GeofenceAlert
+              key={alert.key}
+              alert={alert}
+              onDismiss={(key) => {
+                dismissedGeofenceAlertsRef.current.add(key)
+                setGeofenceAlerts((currentAlerts) =>
+                  currentAlerts.filter((currentAlert) => currentAlert.key !== key)
+                )
+              }}
             />
           ))}
         </div>
@@ -181,7 +328,7 @@ export default function AnimalMap({
 
         {yardBoundaries.map((boundary) => (
           <Polygon
-            key={boundary.name}
+            key={boundary.id ?? boundary.name}
             positions={boundary.positions}
             pathOptions={{
               color: '#16a34a',
