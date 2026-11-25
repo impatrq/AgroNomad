@@ -7,6 +7,7 @@ import { hasValidAnimalPosition } from '../../lib/utils'
 const MIN_REFERENCE_TEMPERATURE = 38
 const MAX_REFERENCE_TEMPERATURE = 39.5
 const OUTSIDE_FIELD_DELAY_MS = 10_000
+const COLLAR_OFFLINE_DELAY_MS = 15_000
 
 function TemperatureAlert({ alert }) {
   const [dismissed, setDismissed] = useState(false)
@@ -82,6 +83,23 @@ function UnassignedCollarsAlert({ collarIds }) {
         </p>
         <p className="unassigned-collars-hint mt-1 text-xs">
           Asigná estos collares a un campo desde Información de campos.
+        </p>
+      </div>
+    </article>
+  )
+}
+
+function OfflineCollarsAlert({ collarIds }) {
+  return (
+    <article
+      role="status"
+      className="offline-collars-alert pointer-events-auto flex gap-3 rounded-2xl border p-4 shadow-lg backdrop-blur"
+    >
+      <AlertTriangle aria-hidden="true" className="offline-collars-icon mt-0.5 h-5 w-5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="offline-collars-title font-semibold">Sin conexión con los collares</p>
+        <p className="offline-collars-body mt-1 break-words text-sm">
+          Sin señal: {collarIds.join(', ')}.
         </p>
       </div>
     </article>
@@ -240,6 +258,49 @@ export default function AnimalMap({
     [animals]
   )
 
+  const [offlineCollarIds, setOfflineCollarIds] = useState([])
+  const firstObservedAtRef = useRef(new Map())
+  const animalsRef = useRef(animals)
+
+  useEffect(() => {
+    animalsRef.current = animals
+  }, [animals])
+
+  useEffect(() => {
+    const checkOfflineCollars = () => {
+      const collarIds = []
+      const currentCollarIds = new Set()
+      const now = Date.now()
+
+      for (const animal of animalsRef.current) {
+        if (!animal.hasCollar) continue
+
+        currentCollarIds.add(animal.id)
+        const lastSeenAt = animal.lastSeenAt ? new Date(animal.lastSeenAt).getTime() : Number.NaN
+        if (Number.isFinite(lastSeenAt)) {
+          firstObservedAtRef.current.delete(animal.id)
+          if (now - lastSeenAt >= COLLAR_OFFLINE_DELAY_MS) collarIds.push(animal.id)
+        } else {
+          if (!firstObservedAtRef.current.has(animal.id)) {
+            firstObservedAtRef.current.set(animal.id, now)
+          }
+          if (now - firstObservedAtRef.current.get(animal.id) >= COLLAR_OFFLINE_DELAY_MS) {
+            collarIds.push(animal.id)
+          }
+        }
+      }
+
+      for (const collarId of firstObservedAtRef.current.keys()) {
+        if (!currentCollarIds.has(collarId)) firstObservedAtRef.current.delete(collarId)
+      }
+
+      setOfflineCollarIds(collarIds)
+    }
+
+    const intervalId = window.setInterval(checkOfflineCollars, 1000)
+    return () => window.clearInterval(intervalId)
+  }, [])
+
   const [geofenceAlerts, setGeofenceAlerts] = useState([])
   const outsideSinceRef = useRef(new Map())
   const dismissedGeofenceAlertsRef = useRef(new Set())
@@ -315,7 +376,8 @@ export default function AnimalMap({
     <div className="relative z-0 mt-6 overflow-hidden rounded-3xl border border-slate-200">
       {(temperatureAlerts.length > 0 ||
         geofenceAlerts.length > 0 ||
-        unassignedCollarIds.length > 0) && (
+        unassignedCollarIds.length > 0 ||
+        offlineCollarIds.length > 0) && (
         <div
           aria-label="Alertas de bienestar"
           aria-live="polite"
@@ -341,6 +403,9 @@ export default function AnimalMap({
           ))}
           {unassignedCollarIds.length > 0 && (
             <UnassignedCollarsAlert collarIds={unassignedCollarIds} />
+          )}
+          {offlineCollarIds.length > 0 && (
+            <OfflineCollarsAlert collarIds={offlineCollarIds} />
           )}
         </div>
       )}

@@ -256,6 +256,7 @@ export default function useAnimalDashboard() {
           name: item.name ?? `Animal ${item.id ?? ''}`,
           hasCollar: item.hasCollar === true,
           yardId: item.yardId ?? null,
+          lastSeenAt: item.lastSeenAt ?? null,
           lat,
           lng,
           hasPosition: item.hasPosition !== false && hasValidAnimalPosition({ lat, lng }),

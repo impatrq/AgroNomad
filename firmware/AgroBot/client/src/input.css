@@ -75,6 +75,26 @@
     color: #bdc9c0;
   }
 
+  .offline-collars-alert {
+    border-color: #facc15;
+    background-color: #fef9c3;
+    color: #713f12;
+  }
+
+  .offline-collars-icon {
+    color: #a16207;
+  }
+
+  .dark .offline-collars-alert {
+    border-color: #a16207;
+    background-color: #3a2c15;
+    color: #fef3c7;
+  }
+
+  .dark .offline-collars-icon {
+    color: #facc15;
+  }
+
   .dark .text-slate-900,
   .dark .text-slate-800,
   .dark .text-slate-700,
