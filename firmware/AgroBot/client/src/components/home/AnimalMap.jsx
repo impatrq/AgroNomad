@@ -1,7 +1,45 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { divIcon } from 'leaflet'
+import { AlertTriangle, X } from 'lucide-react'
 import { CircleMarker, MapContainer, Marker, Polygon, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { hasValidAnimalPosition } from '../../lib/utils'
+
+const MIN_REFERENCE_TEMPERATURE = 38
+const MAX_REFERENCE_TEMPERATURE = 39.5
+
+function TemperatureAlert({ alert }) {
+  const [dismissed, setDismissed] = useState(false)
+
+  if (dismissed) return null
+
+  return (
+    <article
+      role="status"
+      className="pointer-events-auto flex gap-3 rounded-2xl border border-amber-200 bg-white/95 p-4 text-slate-800 shadow-lg backdrop-blur"
+    >
+      <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold">Revisión de bienestar</p>
+        <p className="mt-1 text-sm">
+          {alert.animal.name}: temperatura de {alert.temperature} °C, fuera del rango de referencia
+          ({MIN_REFERENCE_TEMPERATURE}–{MAX_REFERENCE_TEMPERATURE} °C).
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Se recomienda verificar la medición y revisar al animal.
+        </p>
+      </div>
+      <button
+        type="button"
+        aria-label={`Descartar alerta de ${alert.animal.name}`}
+        title="Descartar alerta"
+        onClick={() => setDismissed(true)}
+        className="h-fit rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-amber-600"
+      >
+        <X aria-hidden="true" className="h-4 w-4" />
+      </button>
+    </article>
+  )
+}
 
 function getBearing([startLat, startLng], [endLat, endLng]) {
   const toRadians = (degrees) => (degrees * Math.PI) / 180
@@ -86,8 +124,46 @@ export default function AnimalMap({
     [historyPositions, selectedAnimal]
   )
 
+  const temperatureAlerts = useMemo(
+    () =>
+      animals.flatMap((animal) => {
+        const rawTemperature = animal.temp?.trim()
+        if (!rawTemperature) return []
+
+        const temperature = Number(rawTemperature)
+        if (
+          !Number.isFinite(temperature) ||
+          temperature <= 0 ||
+          (temperature >= MIN_REFERENCE_TEMPERATURE && temperature <= MAX_REFERENCE_TEMPERATURE)
+        ) {
+          return []
+        }
+
+        return [{
+          animal,
+          temperature,
+          type: temperature > MAX_REFERENCE_TEMPERATURE ? 'high' : 'low',
+        }]
+      }),
+    [animals]
+  )
+
   return (
-    <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 relative z-0">
+    <div className="relative z-0 mt-6 overflow-hidden rounded-3xl border border-slate-200">
+      {temperatureAlerts.length > 0 && (
+        <div
+          aria-label="Alertas de bienestar"
+          aria-live="polite"
+          className="pointer-events-none absolute inset-x-3 top-3 z-[1000] flex max-h-[calc(100%-1.5rem)] flex-col gap-2 overflow-y-auto sm:left-auto sm:right-3 sm:w-[22rem]"
+        >
+          {temperatureAlerts.map((alert) => (
+            <TemperatureAlert
+              key={`${alert.animal.id}-${alert.type}`}
+              alert={alert}
+            />
+          ))}
+        </div>
+      )}
       <MapContainer
         center={mapPosition}
         zoom={18}
