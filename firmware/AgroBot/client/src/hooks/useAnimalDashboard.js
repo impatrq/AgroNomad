@@ -47,9 +47,45 @@ function storeDailyDistance(animalId, dateKey, distance) {
   }
 }
 
+function getStoredAnimalActivity(animalId, dateKey) {
+  try {
+    const stored = window.localStorage.getItem(`agronomad:activity:${animalId}:${dateKey}`)
+    if (!stored) return null
+
+    const activity = JSON.parse(stored)
+    if (
+      !activity ||
+      activity.dateKey !== dateKey ||
+      !Number.isFinite(activity.distanceTodayMeters)
+    ) {
+      return null
+    }
+
+    return activity
+  } catch (error) {
+    console.error('Could not read the saved animal activity:', error)
+    return null
+  }
+}
+
+function storeAnimalActivity(animalId, activity) {
+  try {
+    window.localStorage.setItem(
+      `agronomad:activity:${animalId}:${activity.dateKey}`,
+      JSON.stringify(activity),
+    )
+  } catch (error) {
+    console.error('Could not save the animal activity:', error)
+  }
+}
+
 function updateAnimalActivity(activityByAnimal, animal, timestamp) {
   const dateKey = getLocalDateKey(timestamp)
-  const previous = activityByAnimal.get(animal.id)
+  let previous = activityByAnimal.get(animal.id)
+  if (!previous) {
+    previous = getStoredAnimalActivity(animal.id, dateKey)
+    if (previous) activityByAnimal.set(animal.id, previous)
+  }
 
   if (!animal.hasPosition) {
     const activity = previous ?? {
@@ -67,6 +103,7 @@ function updateAnimalActivity(activityByAnimal, animal, timestamp) {
           distanceTodayMeters: getStoredDailyDistance(animal.id, dateKey),
         }
     activityByAnimal.set(animal.id, currentActivity)
+        if (currentActivity !== previous) storeAnimalActivity(animal.id, currentActivity)
     return currentActivity
   }
 
@@ -89,6 +126,7 @@ function updateAnimalActivity(activityByAnimal, animal, timestamp) {
       lastMovementAt: previous?.lastMovementAt ?? null,
     }
     activityByAnimal.set(animal.id, initialActivity)
+    storeAnimalActivity(animal.id, initialActivity)
     return initialActivity
   }
 
@@ -102,6 +140,7 @@ function updateAnimalActivity(activityByAnimal, animal, timestamp) {
       distanceTodayMeters: getStoredDailyDistance(animal.id, dateKey),
     }
     activityByAnimal.set(animal.id, updatedActivity)
+    storeAnimalActivity(animal.id, updatedActivity)
     return updatedActivity
   }
 
@@ -140,6 +179,7 @@ function updateAnimalActivity(activityByAnimal, animal, timestamp) {
     }
     activityByAnimal.set(animal.id, updatedActivity)
     storeDailyDistance(animal.id, dateKey, updatedActivity.distanceTodayMeters)
+    storeAnimalActivity(animal.id, updatedActivity)
     return updatedActivity
   }
 
@@ -193,8 +233,8 @@ export default function useAnimalDashboard() {
   // ---------- Animals: live via WebSocket ----------
 
   useEffect(() => {
-
     let isMounted = true
+    let socket
 
     const applyAnimals = (rawAnimals) => {
       
@@ -214,6 +254,9 @@ export default function useAnimalDashboard() {
         const animal = {
           id: String(item.id ?? ''),
           name: item.name ?? `Animal ${item.id ?? ''}`,
+          hasCollar: item.hasCollar === true,
+          yardId: item.yardId ?? null,
+          lastSeenAt: item.lastSeenAt ?? null,
           lat,
           lng,
           hasPosition: item.hasPosition !== false && hasValidAnimalPosition({ lat, lng }),
@@ -254,13 +297,11 @@ export default function useAnimalDashboard() {
       setError(null)
     }
 
-    async function loadAnimals(){
-      setLoading(true)
-      setError(null)
+    setLoading(true)
+    setError(null)
 
-      if (!isMounted) return
-
-      const socket = new WebSocket(getAnimalsWsUrl());
+    if (isMounted) {
+      socket = new WebSocket(getAnimalsWsUrl())
 
       socket.onopen = () => {
         console.log("Connected to server");
@@ -269,12 +310,10 @@ export default function useAnimalDashboard() {
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
-         const rawAnimals = Array.isArray(data)
+        const rawAnimals = Array.isArray(data)
           ? data
-          : Array.isArray(data?.animals)
-            ? data.animals
-            : []
-        
+          : [data?.data, data?.animals].find(Array.isArray) ?? []
+
         applyAnimals(rawAnimals)
         /*
         if (msg?.type === 'animals' || msg?.type === 'update') {
@@ -295,13 +334,12 @@ export default function useAnimalDashboard() {
       socket.onclose = () => {
         console.log("Disconnected");
       };
-
-      // Important: close socket when component unmounts
-      return () => {
-        socket.close();
-      };
     }
-    loadAnimals()
+
+    return () => {
+      isMounted = false
+      socket?.close()
+    }
   }, []);
   
   /*

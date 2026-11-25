@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 
 import Home from './pages/Home'
 import UserConfig from './pages/UserConfig'
@@ -10,12 +10,25 @@ import 'leaflet/dist/leaflet.css'
 
 function App() {
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname)
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => window.localStorage.getItem('theme') !== 'light',
+  )
   const onLoginState = null;
 
   const handleNavigate = (path) => {
     setCurrentPath(path)
     window.history.pushState({}, '', path)
   }
+
+  const toggleTheme = () => {
+    setIsDarkMode((isDark) => !isDark)
+  }
+
+  useLayoutEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode)
+    document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light'
+    window.localStorage.setItem('theme', isDarkMode ? 'dark' : 'light')
+  }, [isDarkMode])
 
   useEffect(() => {
     const handlePopState = () => {
@@ -39,7 +52,13 @@ function App() {
     return <YardsConfig onNavigate={handleNavigate}/>
   }
 
-  return <Home onNavigate={handleNavigate} />
+  return (
+    <Home
+      onNavigate={handleNavigate}
+      isDarkMode={isDarkMode}
+      onToggleTheme={toggleTheme}
+    />
+  )
 }
 
 export default App

@@ -248,6 +248,20 @@ export async function listYards() {
       [userId]
     )
 
+    const collarsResult = await client.query(
+      `SELECT DISTINCT ON (d.device_uid)
+         d.device_uid AS id,
+         a.name,
+         a.yard_id
+       FROM animals a
+       JOIN animal_devices ad ON ad.animal_id = a.id AND ad.unassigned_at IS NULL
+       JOIN devices d ON d.id = ad.device_id
+       WHERE a.user_id = $1
+         AND UPPER(BTRIM(d.device_uid)) <> 'RP'
+       ORDER BY d.device_uid, a.id`,
+      [userId]
+    )
+
     const limitsField = {}
     const yards = []
 
@@ -267,7 +281,71 @@ export async function listYards() {
       }
     }
 
-    return { yards, limitsField }
+    const collars = collarsResult.rows.map((collar) => ({
+      id: collar.id,
+      name: collar.name,
+      yardId: collar.yard_id,
+    }))
+
+    return { yards, limitsField, collars }
+  } finally {
+    client.release()
+  }
+}
+
+export async function assignCollarToYard(collarId, yardId) {
+  await initializeDatabase()
+  const client = await getDb().connect()
+
+  try {
+    const userId = await getDemoUserId(client)
+    await client.query('BEGIN')
+
+    if (yardId !== null) {
+      const yardResult = await client.query(
+        'SELECT id FROM yards WHERE id = $1 AND user_id = $2',
+        [yardId, userId]
+      )
+      if (yardResult.rowCount === 0) {
+        await client.query('ROLLBACK')
+        return { yardNotFound: true }
+      }
+    }
+
+    const result = await client.query(
+      `UPDATE animals a
+       SET yard_id = $1
+       WHERE a.id = (
+         SELECT assigned_animal.id
+         FROM animals assigned_animal
+         JOIN animal_devices ad
+           ON ad.animal_id = assigned_animal.id AND ad.unassigned_at IS NULL
+         JOIN devices d ON d.id = ad.device_id
+         WHERE assigned_animal.user_id = $2
+           AND d.device_uid = $3
+           AND UPPER(BTRIM(d.device_uid)) <> 'RP'
+         ORDER BY assigned_animal.id
+         LIMIT 1
+       )
+         AND a.user_id = $2
+       RETURNING a.id, a.name, a.yard_id`,
+      [yardId, userId, collarId]
+    )
+
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK')
+      return null
+    }
+
+    await client.query('COMMIT')
+    return {
+      collarId,
+      name: result.rows[0].name,
+      yardId: result.rows[0].yard_id,
+    }
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
   } finally {
     client.release()
   }
@@ -364,7 +442,7 @@ export async function listAnimals() {
   try {
     const userId = await getDemoUserId(client)
     const result = await client.query(
-      `SELECT a.id, a.name, a.animal_type, d.device_uid
+      `SELECT a.id, a.name, a.animal_type, a.yard_id, d.device_uid
        FROM animals a
        LEFT JOIN animal_devices ad ON ad.animal_id = a.id AND ad.unassigned_at IS NULL
        LEFT JOIN devices d ON d.id = ad.device_id
@@ -409,9 +487,10 @@ export async function listAnimals() {
                   AND ST_X(latest.location::geometry) <> 0,
                   FALSE
                 ) AS has_position,
-                latest.temperature
+                latest.temperature,
+                latest.timestamp
          FROM (
-           SELECT location, temperature
+           SELECT location, temperature, timestamp
            FROM gps_positions
            WHERE animal_id = $1
            ORDER BY timestamp DESC, id DESC
@@ -434,10 +513,13 @@ export async function listAnimals() {
       animals.push({
         id: String(row.device_uid || row.id),
         name: row.name,
+        yardId: row.yard_id,
+        hasCollar: Boolean(row.device_uid),
         lat: Number(latest.latitude ?? 0),
         lng: Number(latest.longitude ?? 0),
         hasPosition: latest.has_position === true,
         temp: String(latest.temperature ?? ''),
+        lastSeenAt: latest.timestamp,
       })
     }
 
@@ -514,7 +596,7 @@ export async function upsertAnimalSnapshot(payload) {
       // *************************REVISE************************************
       const insertedAnimal = await client.query(
         `INSERT INTO animals (user_id, yard_id, name, animal_type)
-         VALUES ($1, (SELECT id FROM yards WHERE user_id = $1 LIMIT 1), $2, $3)
+         VALUES ($1, NULL, $2, $3)
          RETURNING id`,
         [userId, name, 'cattle']
       )

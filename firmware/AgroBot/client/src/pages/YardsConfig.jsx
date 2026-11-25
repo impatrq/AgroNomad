@@ -35,6 +35,7 @@ async function getErrorMessage(response) {
 
 export default function YardsConfig({ onNavigate }) {
   const [yards, setYards] = useState([])
+  const [collars, setCollars] = useState([])
   const [selectedId, setSelectedId] = useState('')
   const [draftName, setDraftName] = useState('')
   const [draftPositions, setDraftPositions] = useState([])
@@ -43,6 +44,7 @@ export default function YardsConfig({ onNavigate }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [assigningCollarId, setAssigningCollarId] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -57,8 +59,12 @@ export default function YardsConfig({ onNavigate }) {
         if (!Array.isArray(data.yards)) {
           throw new Error('La respuesta de yards no tiene el formato esperado.')
         }
+        if (!Array.isArray(data.collars)) {
+          throw new Error('La respuesta de collares no tiene el formato esperado.')
+        }
         if (active) {
           setYards(data.yards)
+          setCollars(data.collars)
           setSelectedId(data.yards[0] ? String(data.yards[0].id) : '')
         }
       } catch (loadError) {
@@ -174,11 +180,56 @@ export default function YardsConfig({ onNavigate }) {
       )
       setYards(remainingYards)
       setSelectedId(remainingYards[0] ? String(remainingYards[0].id) : '')
+      setCollars((currentCollars) =>
+        currentCollars.map((collar) =>
+          String(collar.yardId) === String(selectedYard.id)
+            ? { ...collar, yardId: null }
+            : collar
+        )
+      )
       setSuccess(`Se eliminó el yard "${selectedYard.name}".`)
     } catch (deleteError) {
       setError(deleteError.message || 'No se pudo eliminar el yard.')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const assignCollar = async (collarId, yardId) => {
+    setAssigningCollarId(collarId)
+    setError('')
+    setSuccess('')
+    try {
+      const response = await fetch(apiUrl('/api/yards/collars/assignment'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collarId,
+          yardId: yardId === '' ? null : Number(yardId),
+        }),
+      })
+      if (!response.ok) throw new Error(await getErrorMessage(response))
+      const result = await response.json()
+      if (result.status !== 'ok' || !result.assignment) {
+        throw new Error('El servidor no confirmó la asignación del collar.')
+      }
+
+      setCollars((currentCollars) =>
+        currentCollars.map((collar) =>
+          collar.id === collarId
+            ? { ...collar, yardId: result.assignment.yardId }
+            : collar
+        )
+      )
+      setSuccess(
+        result.assignment.yardId === null
+          ? `El collar ${collarId} quedó sin asignar.`
+          : `El collar ${collarId} se asignó correctamente al campo.`
+      )
+    } catch (assignmentError) {
+      setError(assignmentError.message || 'No se pudo asignar el collar.')
+    } finally {
+      setAssigningCollarId('')
     }
   }
 
@@ -359,6 +410,61 @@ export default function YardsConfig({ onNavigate }) {
               )}
             </MapContainer>
           </div>
+
+          <section className="rounded-[28px] border border-green-200 bg-white p-6 shadow-sm">
+            <div>
+              <h2 className="text-2xl font-semibold">Información de campos</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Asigná cada collar a un campo. Los collares nuevos quedan sin asignar hasta que
+                elijas un campo.
+              </p>
+            </div>
+
+            {loading ? (
+              <p className="mt-5 text-sm text-slate-500">Cargando collares…</p>
+            ) : collars.length === 0 ? (
+              <p className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                Todavía no hay collares disponibles.
+              </p>
+            ) : (
+              <div className="mt-5 divide-y divide-slate-100">
+                {collars.map((collar) => (
+                  <div
+                    key={collar.id}
+                    className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">ID del collar</p>
+                      <p className="font-medium text-slate-900">{collar.id}</p>
+                      <p className="text-sm text-slate-500">{collar.name}</p>
+                    </div>
+                    <label className="text-sm font-medium text-slate-700 sm:w-72">
+                      Campo asignado
+                      <select
+                        value={collar.yardId == null ? '' : String(collar.yardId)}
+                        onChange={(event) => assignCollar(collar.id, event.target.value)}
+                        disabled={Boolean(assigningCollarId) || yards.length === 0}
+                        className="mt-1 block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <option value="">
+                          {yards.length === 0 ? 'Sin campos disponibles' : 'Sin asignar'}
+                        </option>
+                        {yards.map((yard) => (
+                          <option key={yard.id} value={yard.id}>{yard.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {yards.length === 0 && collars.length > 0 && (
+              <p className="mt-2 text-sm text-amber-800">
+                Creá un campo para habilitar las asignaciones. Los collares permanecerán sin asignar.
+              </p>
+            )}
+          </section>
         </div>
       </main>
     </div>

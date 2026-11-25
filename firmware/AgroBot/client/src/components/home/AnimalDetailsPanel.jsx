@@ -81,7 +81,7 @@ export default function AnimalDetailsPanel({ selectedAnimal, onNavigate, onRenam
             <div className="space-y-5">
 
               <div className="rounded-3xl bg-slate-100 p-4">
-                <p className="text-sm text-slate-500">ID(identificador unico de collar)</p>
+                <p className="text-sm text-slate-500">ID (Identificador único de collar)</p>
                 <p className="mt-1 text-lg font-semibold">{selectedAnimal.id}</p>
               </div>
 

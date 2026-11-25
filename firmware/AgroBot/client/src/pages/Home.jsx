@@ -8,7 +8,7 @@ import useAnimalDashboard from '../hooks/useAnimalDashboard'
 import useAnimalHistory from '../hooks/useAnimalHistory'
 import { hasValidAnimalPosition, isSameAnimalPosition } from '../lib/utils'
 
-export default function Home({ onNavigate }) {
+export default function Home({ onNavigate, isDarkMode, onToggleTheme }) {
   const {
     animals,
     yardBoundaries,
@@ -82,6 +82,8 @@ export default function Home({ onNavigate }) {
         onToggleMenu={() => setMenuOpen((prev) => !prev)}
         onNavigate={onNavigate}
         scrollToSection={scrollToSection}
+        isDarkMode={isDarkMode}
+        onToggleTheme={onToggleTheme}
       />
 
       <section className="py-10 px-4 sm:px-6 lg:px-8">
@@ -100,7 +102,6 @@ export default function Home({ onNavigate }) {
 
           <div className="grid items-stretch gap-6 xl:grid-cols-[1.5fr_0.9fr]">
             <OverviewPanel
-              animals={animals}
               selectedAnimal={selectedAnimal}
               loading={loading}
               error={error}

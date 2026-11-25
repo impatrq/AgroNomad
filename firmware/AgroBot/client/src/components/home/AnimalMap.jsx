@@ -1,7 +1,147 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { divIcon } from 'leaflet'
+import { AlertTriangle, X } from 'lucide-react'
 import { CircleMarker, MapContainer, Marker, Polygon, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { hasValidAnimalPosition } from '../../lib/utils'
+
+const MIN_REFERENCE_TEMPERATURE = 38
+const MAX_REFERENCE_TEMPERATURE = 39.5
+const OUTSIDE_FIELD_DELAY_MS = 10_000
+const COLLAR_OFFLINE_DELAY_MS = 15_000
+
+function TemperatureAlert({ alert }) {
+  const [dismissed, setDismissed] = useState(false)
+
+  if (dismissed) return null
+
+  return (
+    <article
+      role="status"
+      className="pointer-events-auto flex gap-3 rounded-2xl border border-amber-200 bg-white/95 p-4 text-slate-800 shadow-lg backdrop-blur"
+    >
+      <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold">Revisión de bienestar</p>
+        <p className="mt-1 text-sm">
+          {alert.animal.name}: temperatura de {alert.temperature} °C, fuera del rango de referencia
+          ({MIN_REFERENCE_TEMPERATURE}–{MAX_REFERENCE_TEMPERATURE} °C).
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Se recomienda verificar la medición y revisar al animal.
+        </p>
+      </div>
+      <button
+        type="button"
+        aria-label={`Descartar alerta de ${alert.animal.name}`}
+        title="Descartar alerta"
+        onClick={() => setDismissed(true)}
+        className="h-fit rounded-lg p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-amber-600"
+      >
+        <X aria-hidden="true" className="h-4 w-4" />
+      </button>
+    </article>
+  )
+}
+
+function GeofenceAlert({ alert, onDismiss }) {
+  return (
+    <article
+      role="alert"
+      className="pointer-events-auto flex gap-3 rounded-2xl border border-red-300 bg-white/95 p-4 text-slate-800 shadow-lg backdrop-blur"
+    >
+      <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-red-700">Alerta de perímetro</p>
+        <p className="mt-1 text-sm">
+          {alert.animalName} se encuentra fuera del campo {alert.yardName}.
+        </p>
+      </div>
+      <button
+        type="button"
+        aria-label={`Descartar alerta de perímetro de ${alert.animalName}`}
+        title="Descartar alerta"
+        onClick={() => onDismiss(alert.key)}
+        className="h-fit rounded-lg p-1 text-slate-500 transition hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-red-600"
+      >
+        <X aria-hidden="true" className="h-4 w-4" />
+      </button>
+    </article>
+  )
+}
+
+function UnassignedCollarsAlert({ collarIds }) {
+  return (
+    <article
+      role="status"
+      className="unassigned-collars-alert pointer-events-auto flex gap-3 rounded-2xl border p-4 shadow-lg backdrop-blur"
+    >
+      <AlertTriangle aria-hidden="true" className="unassigned-collars-icon mt-0.5 h-5 w-5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="unassigned-collars-title font-semibold">Collares sin campo asignado</p>
+        <p className="unassigned-collars-body mt-1 break-words text-sm">
+          ID{collarIds.length === 1 ? '' : 's'}: {collarIds.join(', ')}
+        </p>
+        <p className="unassigned-collars-hint mt-1 text-xs">
+          Asigná estos collares a un campo desde Información de campos.
+        </p>
+      </div>
+    </article>
+  )
+}
+
+function OfflineCollarsAlert({ collarIds }) {
+  return (
+    <article
+      role="status"
+      className="offline-collars-alert pointer-events-auto flex gap-3 rounded-2xl border p-4 shadow-lg backdrop-blur"
+    >
+      <AlertTriangle aria-hidden="true" className="offline-collars-icon mt-0.5 h-5 w-5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="offline-collars-title font-semibold">Sin conexión con los collares</p>
+        <p className="offline-collars-body mt-1 break-words text-sm">
+          Sin señal: {collarIds.join(', ')}.
+        </p>
+      </div>
+    </article>
+  )
+}
+
+function isPointOnSegment(point, start, end) {
+  const [latitude, longitude] = point
+  const [startLatitude, startLongitude] = start
+  const [endLatitude, endLongitude] = end
+  const cross =
+    (longitude - startLongitude) * (endLatitude - startLatitude) -
+    (latitude - startLatitude) * (endLongitude - startLongitude)
+
+  if (Math.abs(cross) > 1e-10) return false
+
+  return longitude >= Math.min(startLongitude, endLongitude) - 1e-10 &&
+    longitude <= Math.max(startLongitude, endLongitude) + 1e-10 &&
+    latitude >= Math.min(startLatitude, endLatitude) - 1e-10 &&
+    latitude <= Math.max(startLatitude, endLatitude) + 1e-10
+}
+
+function isPointInsideBoundary([latitude, longitude], positions) {
+  let inside = false
+
+  for (let index = 0, previousIndex = positions.length - 1; index < positions.length; previousIndex = index, index += 1) {
+    const start = positions[index]
+    const end = positions[previousIndex]
+    if (isPointOnSegment([latitude, longitude], start, end)) return true
+
+    const crossesLatitude = (start[0] > latitude) !== (end[0] > latitude)
+    if (
+      crossesLatitude &&
+      longitude <
+        ((end[1] - start[1]) * (latitude - start[0])) / (end[0] - start[0]) + start[1]
+    ) {
+      inside = !inside
+    }
+  }
+
+  return inside
+}
 
 function getBearing([startLat, startLng], [endLat, endLng]) {
   const toRadians = (degrees) => (degrees * Math.PI) / 180
@@ -86,8 +226,189 @@ export default function AnimalMap({
     [historyPositions, selectedAnimal]
   )
 
+  const temperatureAlerts = useMemo(
+    () =>
+      animals.flatMap((animal) => {
+        const rawTemperature = animal.temp?.trim()
+        if (!rawTemperature) return []
+
+        const temperature = Number(rawTemperature)
+        if (
+          !Number.isFinite(temperature) ||
+          temperature <= 0 ||
+          (temperature >= MIN_REFERENCE_TEMPERATURE && temperature <= MAX_REFERENCE_TEMPERATURE)
+        ) {
+          return []
+        }
+
+        return [{
+          animal,
+          temperature,
+          type: temperature > MAX_REFERENCE_TEMPERATURE ? 'high' : 'low',
+        }]
+      }),
+    [animals]
+  )
+
+  const unassignedCollarIds = useMemo(
+    () =>
+      animals
+        .filter((animal) => animal.hasCollar && animal.yardId == null)
+        .map((animal) => animal.id),
+    [animals]
+  )
+
+  const [offlineCollarIds, setOfflineCollarIds] = useState([])
+  const firstObservedAtRef = useRef(new Map())
+  const animalsRef = useRef(animals)
+
+  useEffect(() => {
+    animalsRef.current = animals
+  }, [animals])
+
+  useEffect(() => {
+    const checkOfflineCollars = () => {
+      const collarIds = []
+      const currentCollarIds = new Set()
+      const now = Date.now()
+
+      for (const animal of animalsRef.current) {
+        if (!animal.hasCollar) continue
+
+        currentCollarIds.add(animal.id)
+        const lastSeenAt = animal.lastSeenAt ? new Date(animal.lastSeenAt).getTime() : Number.NaN
+        if (Number.isFinite(lastSeenAt)) {
+          firstObservedAtRef.current.delete(animal.id)
+          if (now - lastSeenAt >= COLLAR_OFFLINE_DELAY_MS) collarIds.push(animal.id)
+        } else {
+          if (!firstObservedAtRef.current.has(animal.id)) {
+            firstObservedAtRef.current.set(animal.id, now)
+          }
+          if (now - firstObservedAtRef.current.get(animal.id) >= COLLAR_OFFLINE_DELAY_MS) {
+            collarIds.push(animal.id)
+          }
+        }
+      }
+
+      for (const collarId of firstObservedAtRef.current.keys()) {
+        if (!currentCollarIds.has(collarId)) firstObservedAtRef.current.delete(collarId)
+      }
+
+      setOfflineCollarIds(collarIds)
+    }
+
+    const intervalId = window.setInterval(checkOfflineCollars, 1000)
+    return () => window.clearInterval(intervalId)
+  }, [])
+
+  const [geofenceAlerts, setGeofenceAlerts] = useState([])
+  const outsideSinceRef = useRef(new Map())
+  const dismissedGeofenceAlertsRef = useRef(new Set())
+
+  useEffect(() => {
+    const checkGeofences = () => {
+      const currentAnimalKeys = new Set()
+      const activeAlerts = new Map()
+      const now = Date.now()
+
+      for (const animal of animals) {
+        if (animal.yardId == null || !hasValidAnimalPosition(animal)) continue
+
+        const boundary = yardBoundaries.find(
+          (yard) => String(yard.id) === String(animal.yardId)
+        )
+        if (!boundary || boundary.positions.length < 3) continue
+
+        const key = `${animal.id}:${boundary.id}`
+        currentAnimalKeys.add(key)
+
+        if (isPointInsideBoundary([animal.lat, animal.lng], boundary.positions)) {
+          outsideSinceRef.current.delete(key)
+          dismissedGeofenceAlertsRef.current.delete(key)
+          continue
+        }
+
+        if (!outsideSinceRef.current.has(key)) {
+          outsideSinceRef.current.set(key, now)
+        }
+
+        if (
+          now - outsideSinceRef.current.get(key) >= OUTSIDE_FIELD_DELAY_MS &&
+          !dismissedGeofenceAlertsRef.current.has(key)
+        ) {
+          activeAlerts.set(key, {
+            key,
+            animalName: animal.name,
+            yardName: boundary.name,
+          })
+        }
+      }
+
+      for (const key of outsideSinceRef.current.keys()) {
+        if (!currentAnimalKeys.has(key)) {
+          outsideSinceRef.current.delete(key)
+          dismissedGeofenceAlertsRef.current.delete(key)
+        }
+      }
+
+      setGeofenceAlerts((currentAlerts) => {
+        const nextAlerts = [...activeAlerts.values()]
+        if (
+          currentAlerts.length === nextAlerts.length &&
+          currentAlerts.every((alert, index) =>
+            alert.key === nextAlerts[index]?.key &&
+            alert.animalName === nextAlerts[index]?.animalName &&
+            alert.yardName === nextAlerts[index]?.yardName
+          )
+        ) {
+          return currentAlerts
+        }
+        return nextAlerts
+      })
+    }
+
+    checkGeofences()
+    const intervalId = window.setInterval(checkGeofences, 500)
+    return () => window.clearInterval(intervalId)
+  }, [animals, yardBoundaries])
+
   return (
-    <div className="mt-6 overflow-hidden rounded-3xl border border-slate-200 relative z-0">
+    <div className="relative z-0 mt-6 overflow-hidden rounded-3xl border border-slate-200">
+      {(temperatureAlerts.length > 0 ||
+        geofenceAlerts.length > 0 ||
+        unassignedCollarIds.length > 0 ||
+        offlineCollarIds.length > 0) && (
+        <div
+          aria-label="Alertas de bienestar"
+          aria-live="polite"
+          className="pointer-events-none absolute inset-x-3 top-3 z-[1000] flex max-h-[calc(100%-1.5rem)] flex-col gap-2 overflow-y-auto sm:left-auto sm:right-3 sm:w-[22rem]"
+        >
+          {temperatureAlerts.map((alert) => (
+            <TemperatureAlert
+              key={`${alert.animal.id}-${alert.type}`}
+              alert={alert}
+            />
+          ))}
+          {geofenceAlerts.map((alert) => (
+            <GeofenceAlert
+              key={alert.key}
+              alert={alert}
+              onDismiss={(key) => {
+                dismissedGeofenceAlertsRef.current.add(key)
+                setGeofenceAlerts((currentAlerts) =>
+                  currentAlerts.filter((currentAlert) => currentAlert.key !== key)
+                )
+              }}
+            />
+          ))}
+          {unassignedCollarIds.length > 0 && (
+            <UnassignedCollarsAlert collarIds={unassignedCollarIds} />
+          )}
+          {offlineCollarIds.length > 0 && (
+            <OfflineCollarsAlert collarIds={offlineCollarIds} />
+          )}
+        </div>
+      )}
       <MapContainer
         center={mapPosition}
         zoom={18}
@@ -105,7 +426,7 @@ export default function AnimalMap({
 
         {yardBoundaries.map((boundary) => (
           <Polygon
-            key={boundary.name}
+            key={boundary.id ?? boundary.name}
             positions={boundary.positions}
             pathOptions={{
               color: '#16a34a',
