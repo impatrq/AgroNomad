@@ -51,7 +51,7 @@ Ejemplo de payload aceptado:
 
 | Método y ruta | Función |
 |---|---|
-| `GET /api/animals` | Devuelve los animales con su última posición y temperatura. |
+| `GET /api/animals` | Devuelve los animales con su última posición, temperatura y el ID del campo asignado (`yardId`). |
 | `POST /api/animals/rename` | Cambia el nombre de un animal usando `id` y `name`. |
 | `GET /api/yards` | Devuelve los límites de los campos y los collares con su campo asignado. |
 | `POST /api/yards` | Crea un yard con un nombre y un polígono de coordenadas. |

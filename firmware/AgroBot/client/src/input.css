@@ -47,6 +47,34 @@
     background-color: #3b2020;
   }
 
+  .unassigned-collars-alert {
+    border-color: #cbd5e1;
+    background-color: #f1f5f9;
+    color: #334155;
+  }
+
+  .unassigned-collars-icon {
+    color: #64748b;
+  }
+
+  .unassigned-collars-hint {
+    color: #475569;
+  }
+
+  .dark .unassigned-collars-alert {
+    border-color: #405247;
+    background-color: #1e2b23;
+    color: #e5eee7;
+  }
+
+  .dark .unassigned-collars-icon {
+    color: #cbd5e1;
+  }
+
+  .dark .unassigned-collars-hint {
+    color: #bdc9c0;
+  }
+
   .dark .text-slate-900,
   .dark .text-slate-800,
   .dark .text-slate-700,

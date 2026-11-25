@@ -68,6 +68,26 @@ function GeofenceAlert({ alert, onDismiss }) {
   )
 }
 
+function UnassignedCollarsAlert({ collarIds }) {
+  return (
+    <article
+      role="status"
+      className="unassigned-collars-alert pointer-events-auto flex gap-3 rounded-2xl border p-4 shadow-lg backdrop-blur"
+    >
+      <AlertTriangle aria-hidden="true" className="unassigned-collars-icon mt-0.5 h-5 w-5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="unassigned-collars-title font-semibold">Collares sin campo asignado</p>
+        <p className="unassigned-collars-body mt-1 break-words text-sm">
+          ID{collarIds.length === 1 ? '' : 's'}: {collarIds.join(', ')}
+        </p>
+        <p className="unassigned-collars-hint mt-1 text-xs">
+          Asigná estos collares a un campo desde Información de campos.
+        </p>
+      </div>
+    </article>
+  )
+}
+
 function isPointOnSegment(point, start, end) {
   const [latitude, longitude] = point
   const [startLatitude, startLongitude] = start
@@ -212,6 +232,14 @@ export default function AnimalMap({
     [animals]
   )
 
+  const unassignedCollarIds = useMemo(
+    () =>
+      animals
+        .filter((animal) => animal.hasCollar && animal.yardId == null)
+        .map((animal) => animal.id),
+    [animals]
+  )
+
   const [geofenceAlerts, setGeofenceAlerts] = useState([])
   const outsideSinceRef = useRef(new Map())
   const dismissedGeofenceAlertsRef = useRef(new Set())
@@ -285,7 +313,9 @@ export default function AnimalMap({
 
   return (
     <div className="relative z-0 mt-6 overflow-hidden rounded-3xl border border-slate-200">
-      {(temperatureAlerts.length > 0 || geofenceAlerts.length > 0) && (
+      {(temperatureAlerts.length > 0 ||
+        geofenceAlerts.length > 0 ||
+        unassignedCollarIds.length > 0) && (
         <div
           aria-label="Alertas de bienestar"
           aria-live="polite"
@@ -309,6 +339,9 @@ export default function AnimalMap({
               }}
             />
           ))}
+          {unassignedCollarIds.length > 0 && (
+            <UnassignedCollarsAlert collarIds={unassignedCollarIds} />
+          )}
         </div>
       )}
       <MapContainer
