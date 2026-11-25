@@ -67,8 +67,17 @@ Permite visualizar y gestionar la información recibida desde los AgroNeck a tra
 
 ## Equipo AgroNomad
 
+
 <div align="center">
   <img src="docs/Imagenes/AgroNomad Team.png" alt="Equipo AgroNomad" width="600" />
+  <p><em>Equipo AgroNomad</em></p>
+</div>
+
+<br>
+
+<div align="center">
+  <img src="docs/Imagenes/AgroNomad Muestra.jpeg" alt="AgroNomad Muestra" width="600" />
+  <p><em>Equipo AgroNomad en la Muestra Anual</em></p>
 </div>
 
 <br />
