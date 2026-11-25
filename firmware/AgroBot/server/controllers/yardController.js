@@ -1,4 +1,10 @@
-import { createYard, deleteYard, listYards, updateYardBoundary } from '../db/index.js'
+import {
+  assignCollarToYard,
+  createYard,
+  deleteYard,
+  listYards,
+  updateYardBoundary,
+} from '../db/index.js'
 
 export async function getYards(_request, response) {
   response.json(await listYards())
@@ -104,4 +110,31 @@ export async function removeYard(request, response) {
     return response.status(404).json({ status: 'error', message: 'No se encontró el yard.' })
   }
   return response.json({ status: 'ok', id })
+}
+
+export async function putCollarAssignment(request, response) {
+  const collarId =
+    typeof request.body?.collarId === 'string' ? request.body.collarId.trim() : ''
+  const yardId =
+    request.body?.yardId === null ? null : Number(request.body?.yardId)
+
+  if (
+    !collarId ||
+    (yardId !== null && (!Number.isSafeInteger(yardId) || yardId < 1))
+  ) {
+    return response.status(400).json({
+      status: 'error',
+      message: 'El ID del collar y el campo seleccionado no son válidos.',
+    })
+  }
+
+  const result = await assignCollarToYard(collarId, yardId)
+  if (result?.yardNotFound) {
+    return response.status(404).json({ status: 'error', message: 'No se encontró el campo.' })
+  }
+  if (!result) {
+    return response.status(404).json({ status: 'error', message: 'No se encontró el collar.' })
+  }
+
+  return response.json({ status: 'ok', assignment: result })
 }
