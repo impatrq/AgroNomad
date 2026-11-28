@@ -1,5 +1,9 @@
 # AgroBotApp
 
+> Para preparar la Raspberry Pi, instalar dependencias, configurar PostgreSQL/PostGIS,
+> compilar los componentes y publicar el sistema, consultar
+> [`docs/Setup.md`](docs/Setup.md).
+
 ## 1. Objetivo
 
 El código del AgroBot recibe datos desde los AgroNeck, los guarda en PostgreSQL con PostGIS y los muestra en un dashboard web. Este código tiene implementado la recepción de posiciones, el almacenamiento de animales y campos, la visualización en un mapa y el cambio de nombre de los animales. Algunas funciones descriptas en el todavía están planificadas, pero no implementadas.
