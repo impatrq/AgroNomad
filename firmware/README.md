@@ -344,4 +344,4 @@ npm install
 npm run dev -- --host 0.0.0.0
 ```
 
-Para detalles de instalación, variables de entorno y preparación de hardware, consultar [`AgroBot/Setup.md`](AgroBot/Setup.md).
+Para detalles de instalación, variables de entorno y preparación de hardware, consultar [`AgroBot/docs/Setup.md`](AgroBot/docs/Setup.md).
